@@ -1,0 +1,6 @@
+mike:
+	- Added skeleton code for more known new pets in Cataclysm
+	- Add a custom string for the two brewfest mounts.
+	- grr :)
+	- Added skeleton entries for new mounts for cataclysm
+	- Added skeleton entries for new pets for cataclysm

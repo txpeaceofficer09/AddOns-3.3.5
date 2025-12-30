@@ -1,0 +1,7 @@
+## Interface: 30300
+## Version: 10.08.14
+## Title: Examiner
+## Author: Aezay (Earthen Ring EU)
+## Notes: Advanced Inspection Mod of Gear, Talents, Honor, Arena and Achievements.
+## SavedVariables: Examiner_Config, Examiner_Cache
+Examiner.xml

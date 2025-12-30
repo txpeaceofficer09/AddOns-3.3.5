@@ -1,0 +1,34 @@
+Creating an Examiner Module
+---------------------------
+Examiner:CreateModule(token)
+
+Module Meta Functions
+---------------------
+CanCache()
+CreateButton(label,tipHeader,tipText,exclude)
+CreatePage(full,header)
+
+Module Table Entries
+--------------------
+There are several control variables in the module table, which affects how the module works and shown by Examiner.
+
+showItems		boolean		Show item slots on this module's page?
+canCache		boolean		When enabled, it will allow the user to select in the config if this module is allowed to cache. Use cfg.cache[mod.label] to check the setting.
+
+Module Scripts
+--------------
+If one of these functions exists in your module, they are called when certain events happen in Examiner.
+You could for example have an OnCache() function in your module, then if the user has caching enabled, it would be called right after OnInspect().
+Do note that this event happens even if the user has disabled caching for this module. You could then add things to the entry table, and then load them on an OnCacheLoaded() call.
+The OnInitialize() function will be removed by the core once called.
+
+OnInitialize()
+OnInspect(unit)
+OnClearInspect()
+OnCache(entry,allowed)
+OnCacheLoaded(entry,unit)
+OnButtonClick(button)
+OnConfigChanged(var,value)
+OnPageChanged(mod)
+OnCompare(isCompare,compareEntry)
+OnDetailsUpdate()
