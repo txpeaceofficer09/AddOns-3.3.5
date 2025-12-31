@@ -1,12 +1,12 @@
-﻿--[[
+--[[
 ************************************************************************
 Seasonal.lua
 Seasonal data for all of AckisRecipeList
 ************************************************************************
-File date: 2010-03-14T06:15:56Z
+File date: 2010-10-02T16:58:09Z
 File revision: @file-revision@
 Project revision: @project-revision@
-Project version: v2.01
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Format:
 	self:addLookupList(SeasonDB, Season ID, Season Name)

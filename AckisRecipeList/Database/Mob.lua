@@ -6,7 +6,7 @@ Mob data for all of Ackis Recipe List
 File date: 2010-08-25T18:37:08Z
 File revision: @file-revision@
 Project revision: @project-revision@
-Project version: v2.01
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Format:
 	self:addLookupList(DB,NPC ID, NPC Name, NPC Location, X Coord, Y Coord, Faction)

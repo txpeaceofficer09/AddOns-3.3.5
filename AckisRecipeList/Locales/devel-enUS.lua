@@ -6,10 +6,10 @@ Manually add entries here and then proceed to update the localization
 application located here:
 	http://www.wowace.com/addons/arl/localization/
 ************************************************************************
-File date: 2010-08-25T18:37:08Z
+File date: 2010-10-05T16:55:15Z
 File revision: @file-revision@
 Project revision: @project-revision@
-Project version: v2.01
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Please see http://www.wowace.com/addons/arl/ for more information.
 These translations are released under the Public Domain.
@@ -897,6 +897,7 @@ L["Haughty Modiste"] = true
 L["Heldan Galesong"] = true
 L["Helenia Olden"] = true
 L["Hgarth"] = true
+L["High Admiral \"Shelly\" Jorrik"] = true
 L["High Enchanter Bardolan"] = true
 L["Highlord Darion Mograine"] = true
 L["Hillsbrad Tailor"] = true

@@ -3,10 +3,10 @@
 Enchanting.lua
 Enchanting data for all of Ackis Recipe List
 ************************************************************************
-File date: 2010-08-25T18:35:20Z
+File date: 2010-09-07T13:13:55Z
 File revision: @file-revision@
 Project revision: @project-revision@
-Project version: v2.01
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Please see http://www.wowace.com/addons/arl/ for more information.
 ************************************************************************
@@ -173,7 +173,7 @@ function addon:InitEnchanting()
 	-- Enchant Shield - Minor Stamina -- 13378
 	AddRecipe(13378, 105, nil, Q.COMMON, V.ORIG, 105, 130, 150, 170)
 	self:AddRecipeFlags(13378, F.ALLIANCE, F.HORDE, F.TRAINER, F.IBOE, F.RBOE, F.SHIELD)
-	self:AddRecipeTrainer(13378, 3606, 19540, 11072, 11073, 18753, 11074, 5157, 19251, 16725, 19252, 16633, 18773, 33610, 4616, 1317, 4213, 33676, 3011, 3345, 7949, 16160)
+	self:AddRecipeTrainer(13378, 3606, 19540, 11072, 11073, 18753, 11074, 5157, 19251, 16725, 19252, 16633, 18773, 33610, 4616, 1317, 4213, 33676, 3011, 3345, 7949, 16160, 5695)
 
 	-- Enchant 2H Weapon - Lesser Spirit -- 13380
 	AddRecipe(13380, 110, nil, Q.UNCOMMON, V.ORIG, 110, 135, 155, 175)
@@ -343,7 +343,7 @@ function addon:InitEnchanting()
 
 	-- Enchant Shield - Lesser Block -- 13689
 	AddRecipe(13689, 195, nil, Q.UNCOMMON, V.ORIG, 195, 215, 235, 255)
-	self:AddRecipeFlags(13689, F.ALLIANCE, F.HORDE, F.INSTANCE, F.WORLD_DROP, F.IBOE, F.RBOE, F.TANK, F.SHIELD)
+	self:AddRecipeFlags(13689, F.ALLIANCE, F.HORDE, F.WORLD_DROP, F.IBOE, F.RBOE, F.TANK, F.SHIELD)
 	self:AddRecipeWorldDrop(13689, "Kalimdor", "Eastern Kingdoms")
 
 	-- Enchant Weapon - Striking -- 13693

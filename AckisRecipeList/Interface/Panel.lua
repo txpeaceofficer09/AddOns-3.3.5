@@ -4,8 +4,8 @@ Panel.lua
 ************************************************************************
 File date: 2010-07-15T11:57:44Z
 File hash: be2512a
-Project hash: b1d0854
-Project version: v2.01
+Project hash: fc58e9f
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Please see http://www.wowace.com/addons/arl/ for more information.
 ************************************************************************

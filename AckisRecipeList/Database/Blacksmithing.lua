@@ -3,10 +3,10 @@
 Blacksmithing.lua
 Blacksmithing data for all of Ackis Recipe List
 ************************************************************************
-File date: 2010-06-19T02:39:46Z
+File date: 2010-10-05T16:56:09Z
 File revision: @file-revision@
 Project revision: @project-revision@
-Project version: v2.01
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Please see http://www.wowace.com/addons/arl/ for more information.
 ************************************************************************
@@ -283,7 +283,7 @@ function addon:InitBlacksmithing()
 	-- Solid Iron Maul -- 3494
 	AddRecipe(3494, 155, 3851, Q.COMMON, V.ORIG, 155, 180, 192, 205)
 	self:AddRecipeFlags(3494, F.ALLIANCE, F.HORDE, F.VENDOR, F.IBOE, F.RBOE, F.TWO_HAND, F.MACE)
-	self:AddRecipeVendor(3494, 9179, 8878, 1471)
+	self:AddRecipeLimitedVendor(3494, 9179, 1, 8878, 1, 1471, 1, 26081, 1)
 
 	-- Golden Iron Destroyer -- 3495
 	AddRecipe(3495, 170, 3852, Q.UNCOMMON, V.ORIG, 170, 195, 207, 220)
@@ -2141,27 +2141,27 @@ function addon:InitBlacksmithing()
 	-- Corroded Saronite Edge -- 55183
 	AddRecipe(55183, 415, 41186, Q.COMMON, V.WOTLK, 415, 420, 425, 430, 9787)
 	self:AddRecipeFlags(55183, F.ALLIANCE, F.HORDE, F.TRAINER, F.IBOP, F.RBOP, F.DPS, F.ONE_HAND, F.SWORD)
-	self:AddRecipeTrainer(55183, 11146, 29505, 11178)
+	self:AddRecipeTrainer(55183, 11146, 29505, 11178, 20124)
 
 	-- Corroded Saronite Woundbringer -- 55184
 	AddRecipe(55184, 415, 41187, Q.COMMON, V.WOTLK, 415, 420, 425, 430, 9787)
 	self:AddRecipeFlags(55184, F.ALLIANCE, F.HORDE, F.TRAINER, F.IBOP, F.RBOP, F.DPS, F.ONE_HAND, F.SWORD)
-	self:AddRecipeTrainer(55184, 11146, 29505, 11178)
+	self:AddRecipeTrainer(55184, 11146, 29505, 11178, 20124)
 
 	-- Saronite Mindcrusher -- 55185
 	AddRecipe(55185, 415, 41188, Q.COMMON, V.WOTLK, 415, 420, 425, 430, 9787)
 	self:AddRecipeFlags(55185, F.ALLIANCE, F.HORDE, F.TRAINER, F.IBOP, F.RBOP, F.DPS, F.TWO_HAND, F.MACE)
-	self:AddRecipeTrainer(55185, 11146, 29505, 11178)
+	self:AddRecipeTrainer(55185, 11146, 29505, 11178, 20124)
 
 	-- Chestplate of Conquest -- 55186
 	AddRecipe(55186, 415, 41189, Q.COMMON, V.WOTLK, 415, 420, 425, 430, 9788)
 	self:AddRecipeFlags(55186, F.ALLIANCE, F.HORDE, F.TRAINER, F.IBOP, F.RBOP, F.DPS, F.PLATE)
-	self:AddRecipeTrainer(55186, 29506, 5164, 11177)
+	self:AddRecipeTrainer(55186, 29506, 5164, 11177, 20125)
 
 	-- Legplates of Conquest -- 55187
 	AddRecipe(55187, 415, 41190, Q.COMMON, V.WOTLK, 415, 420, 425, 430, 9788)
 	self:AddRecipeFlags(55187, F.ALLIANCE, F.HORDE, F.TRAINER, F.IBOP, F.RBOP, F.DPS, F.PLATE)
-	self:AddRecipeTrainer(55187, 29506, 5164, 11177)
+	self:AddRecipeTrainer(55187, 29506, 5164, 11177, 20125)
 
 	-- Sturdy Cobalt Quickblade -- 55200
 	AddRecipe(55200, 380, 41239, Q.COMMON, V.WOTLK, 380, 385, 390, 395)

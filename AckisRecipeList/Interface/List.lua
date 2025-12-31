@@ -1285,7 +1285,7 @@ function private.InitializeListFrame()
 				if not hide_type then
 					func = ExpandCustomData
 				end
-				--[===[@alpha@
+				--@alpha@
 			elseif acquire_type > A_MAX then
 				local t = AcquireTable()
 
@@ -1293,7 +1293,7 @@ function private.InitializeListFrame()
 				t.recipe_id = recipe_id
 
 				entry_index = ListFrame:InsertEntry(t, parent_entry, entry_index, entry_type, true)
-				--@end-alpha@]===]
+				--@end-alpha@
 			end
 
 			if func then
@@ -1765,11 +1765,11 @@ do
 						Tooltip_AddWorldDrop(recipe_id, id_num, location, addline_func)
 					elseif acquire_type == A.CUSTOM then
 						addline_func(0, -1, false, private.custom_list[id_num].name, CATEGORY_COLORS["custom"])
-						--[===[@alpha@
+						--@alpha@
 					elseif can_display then
 						-- Unhandled
 						addline_func(0, -1, 0, L["Unhandled Recipe"], BASIC_COLORS["normal"])
-						--@end-alpha@]===]
+						--@end-alpha@
 					end
 				end	-- for id_num
 			end	-- if can_display

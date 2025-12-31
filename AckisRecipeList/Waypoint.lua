@@ -3,8 +3,8 @@
 -------------------------------------------------------------------------------
 -- File date: 2010-07-07T14:54:29Z
 -- File hash: 64fc586
--- Project hash: b1d0854
--- Project version: v2.01
+-- Project hash: fc58e9f
+-- Project version: v2.01-14-gfc58e9f
 -------------------------------------------------------------------------------
 -- Please see http://www.wowace.com/addons/arl/ for more information.
 -------------------------------------------------------------------------------
@@ -512,11 +512,11 @@ function addon:AddWaypoint(recipe_id, acquire_id, location_id, npc_id)
 			self:Debug("No continent/zone map match for ID %d. Location: %s.", spell_id, location)
 		end
 
-		--[===[@alpha@
+		--@alpha@
 		if (x < -100) or (x > 100) or (y < -100) or (y > 100) then
 			self:Debug("Invalid location coordinates for ID %d. Location: %s.", spell_id, location)
 		end
-		--@end-alpha@]===]
+		--@end-alpha@
 
 		if zone and continent then
 			if x == 0 and y == 0 and not INSTANCE_LOCATIONS[location] then
@@ -545,7 +545,7 @@ function addon:AddWaypoint(recipe_id, acquire_id, location_id, npc_id)
 				table.insert(iconlist, pt.WaypointID)
 			end
 		else
-			--[===[@alpha@
+			--@alpha@
 			if not zone then
 				self:Debug("No zone for ID %d. Location: %s.", spell_id, location)
 			end
@@ -553,7 +553,7 @@ function addon:AddWaypoint(recipe_id, acquire_id, location_id, npc_id)
 			if not continent then
 				self:Debug("No continent for ID %d. Location: %s.", spell_id, location)
 			end
-			--@end-alpha@]===]
+			--@end-alpha@
 		end
 	end
 end

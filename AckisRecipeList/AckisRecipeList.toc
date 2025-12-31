@@ -5,14 +5,14 @@
 ## Title-koKR: Ackis의 제조법 리스트 2.0
 ## Title-esMX: Ackis Recipe List 2.0
 ## Title-ruRU: Ackis Recipe List 2.0
-## Title-zhCN: Ackis Recipe List 2.0
+## Title-zhCN: Ackis Recipe List
 ## Title-esES: Ackis Recipe List 2.0
-## Title-zhTW: Ackis Recipe List 2.0
+## Title-zhTW: Ackis Recipe List
 #@end-non-debug@
 #@debug@
 # ## Title: Ackis Recipe List - Development Version
 #@end-debug@
-## X-Curse-Packaged-Version: v2.01
+## X-Curse-Packaged-Version: v2.01-14-gfc58e9f
 ## X-Curse-Project-Name: Ackis Recipe List
 ## X-Curse-Project-ID: arl
 ## X-Curse-Repository-ID: wow/arl/mainline
@@ -36,9 +36,10 @@
 ## X-Donate: http://www.wowace.com/addons/arl/pages/donations/
 
 ## Interface: 30300
-## Version: v2.01
-## X-Revision: b1d0854
-## X-Date: 2010-07-26T02:08:25Z
+## X-Compatible-With: 30300
+## Version: v2.01-14-gfc58e9f
+## X-Revision: fc58e9f
+## X-Date: 2010-09-02T15:07:32Z
 
 ## X-Credits: FGWarmonger, Kagaro, Speeddymon, Xinhuan, Aesir, BWMerlin, everyone who translated stuff and more!
 ## X-Category: Tradeskill

@@ -6,7 +6,7 @@ Inscription data for all of Ackis Recipe List
 File date: 2010-07-23T08:23:04Z
 File revision: @file-revision@
 Project revision: @project-revision@
-Project version: v2.01
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Format:
 

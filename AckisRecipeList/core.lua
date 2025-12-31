@@ -2,10 +2,10 @@
 ************************************************************************
 core.lua
 ************************************************************************
-File date: 2010-08-17T14:36:58Z
-File hash: 4332d13
-Project hash: b1d0854
-Project version: v2.01
+File date: 2010-08-30T15:19:33Z
+File hash: 6593a22
+Project hash: fc58e9f
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Please see http://www.wowace.com/addons/arl/ for more information.
 ************************************************************************
@@ -55,9 +55,9 @@ local MODNAME	= "Ackis Recipe List"
 local addon	= LibStub("AceAddon-3.0"):NewAddon(MODNAME, "AceConsole-3.0", "AceEvent-3.0")
 _G.AckisRecipeList = addon
 
---[===[@alpha@
+--@alpha@
 _G.ARL = addon
---@end-alpha@]===]
+--@end-alpha@
 
 local L		= LibStub("AceLocale-3.0"):GetLocale(MODNAME)
 local BFAC 	= LibStub("LibBabble-Faction-3.0"):GetLookupTable()
@@ -965,7 +965,9 @@ do
 		elseif skill_level >= recipe_entry.optimal_level then
 			diff_color = "optimal"
 		else
+			--[===[@debug@
 			addon:Debug("Skill level color fallback: %s.", recipe_string)
+			--@end-debug@]===]
 			diff_color = "trivial"
 		end
 		local level_text = string.format(private.SetTextColor(private.difficulty_colors[diff_color], SKILL_LEVEL_FORMAT), recipe_level)
@@ -999,9 +1001,9 @@ do
 		local recipe_list = private.recipe_list
 
 		if recipe_list[spell_id] then
-			--[===[@alpha@
+			--@alpha@
 			self:Print("Duplicate recipe: "..recipe_list[spell_id].profession.." "..tostring(spell_id).." "..recipe_list[spell_id].name)
-			--@end-alpha@]===]
+			--@end-alpha@
 			return
 		end
 
@@ -1344,18 +1346,18 @@ do
 			cur_var = cur_var + 1
 
 			if not private.reputation_list[faction_id] then
-				--[===[@alpha@
+				--@alpha@
 				self:Printf("Spell ID %d: Faction ID %d does not exist in the database.", spell_id, faction_id)
-				--@end-alpha@]===]
+				--@end-alpha@
 			else
 				if not vendor_id then
-					--[===[@alpha@
+					--@alpha@
 					self:Print("Spell ID "..spell_id..": Reputation Vendor ID is nil.")
-					--@end-alpha@]===]
+					--@end-alpha@
 				elseif not vendor_list[vendor_id] then
-					--[===[@alpha@
+					--@alpha@
 					self:Print("Spell ID "..spell_id..": Reputation Vendor ID "..vendor_id.." does not exist in the database.")
-					--@end-alpha@]===]
+					--@end-alpha@
 				else
 					faction[rep_level][vendor_id] = true
 
@@ -1420,7 +1422,7 @@ do
 			DB[ID]["coord_y"] = coord_y
 		end
 
-		--[===[@alpha@
+		--@alpha@
 		if not location and DB ~= private.custom_list then
 			self:Debug("Lookup ID: %d (%s) has an unknown location.", ID, DB[ID].name or _G.UNKNOWN)
 		end
@@ -1428,7 +1430,7 @@ do
 		if faction and DB == private.mob_list then
 			self:Debug("Mob %d (%s) has been assigned to faction %s.", ID, name, DB[ID].faction)
 		end
-		--@end-alpha@]===]
+		--@end-alpha@
 	end
 end	-- do
 
@@ -1437,9 +1439,9 @@ end	-- do
 -------------------------------------------------------------------------------
 function addon:InitializeProfession(profession)
 	if not profession then
-		--[===[@alpha@
+		--@alpha@
 		addon:Print("nil profession passed to InitializeProfession()")
-		--@end-alpha@]===]
+		--@end-alpha@
 		return
 	end
 
@@ -1888,7 +1890,7 @@ do
 		end
 	end	-- do
 
-	---Dumps the recipe database in a format that is readable to humans.
+	---Dumps the recipe database in a format that is readable to humans (or machines)
 	function addon:GetTextDump(profession)
 		local output = addon.db.profile.textdumpformat
 		table.wipe(text_table)

@@ -3,10 +3,10 @@
 Vendor.lua
 Vendor data for all of Ackis Recipe List
 ************************************************************************
-File date: 2010-06-29T07:03:12Z
+File date: 2010-10-05T16:55:15Z
 File revision: @file-revision@
 Project revision: @project-revision@
-Project version: v2.01
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Format:
 	self:addLookupList(DB, NPC ID, NPC Name, NPC Location, X Coord, Y Coord, Faction)
@@ -359,6 +359,7 @@ function addon:InitVendor(DB)
 	AddVendor(23437,	L["Indormi"],				BZ["Hyjal Summit"],		   0,	 0, NEUTRAL)
 	AddVendor(25032,	L["Eldara Dawnrunner"],			BZ["Isle of Quel'Danas"],	47.1, 30.0, NEUTRAL)
 	AddVendor(25950,	L["Shaani"],				BZ["Isle of Quel'Danas"],	51.5, 32.6, NEUTRAL)
+	AddVendor(26081, 	L["High Admiral \"Shelly\" Jorrik"],      BZ["Dun Morogh"], 10.9, 76.1, NEUTRAL)
 	AddVendor(26569,	L["Alys Vol'tyr"],			BZ["Dragonblight"],		36.3, 46.5, HORDE)
 	AddVendor(26868,	L["Provisioner Lorkran"],		BZ["Grizzly Hills"],		22.6, 66.1, HORDE)
 	AddVendor(27030,	L["Bradley Towns"],			BZ["Dragonblight"],		76.9, 62.2, HORDE)

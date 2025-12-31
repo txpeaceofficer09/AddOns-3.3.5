@@ -3,10 +3,10 @@
 Leatherworking.lua
 Leatherworking data for all of Ackis Recipe List
 ************************************************************************
-File date: 2010-06-03T02:14:57Z
+File date: 2010-10-05T04:41:11Z
 File revision: @file-revision@
 Project revision: @project-revision@
-Project version: v2.01
+Project version: v2.01-14-gfc58e9f
 ************************************************************************
 Please see http://www.wowace.com/addons/arl/ for more information.
 ************************************************************************
@@ -787,7 +787,7 @@ function addon:InitLeatherworking()
 
 	-- Warbear Harness -- 19068
 	AddRecipe(19068, 275, 15064, Q.COMMON, V.ORIG, 275, 295, 305, 315)
-	self:AddRecipeFlags(19068, F.ALLIANCE, F.HORDE, F.VENDOR, F.WORLD_DROP, F.MOB_DROP, F.IBOE, F.RBOP, F.DPS, F.LEATHER, F.TIMBERMAW_HOLD)
+	self:AddRecipeFlags(19068, F.ALLIANCE, F.HORDE, F.VENDOR, F.WORLD_DROP, F.IBOE, F.RBOP, F.DPS, F.LEATHER, F.TIMBERMAW_HOLD)
 	self:AddRecipeRepVendor(19068, FAC.TIMBERMAW_HOLD, REP.FRIENDLY, 11557)
 
 	-- Heavy Scorpid Belt -- 19070
@@ -1888,12 +1888,12 @@ function addon:InitLeatherworking()
 
 	-- Leather Gauntlets of the Sun -- 46132
 	AddRecipe(46132, 365, 34372, Q.EPIC, V.TBC, 365, 375, 392, 410)
-	self:AddRecipeFlags(46132, F.ALLIANCE, F.HORDE, F.RAID, F.IBOE, F.RBOE, F.HEALER, F.CASTER, F.LEATHER)
+	self:AddRecipeFlags(46132, F.ALLIANCE, F.HORDE, F.RAID, F.IBOE, F.RBOP, F.HEALER, F.CASTER, F.LEATHER)
 	self:AddRecipeAcquire(46132, A.CUSTOM, 24)
 
 	-- Fletcher's Gloves of the Phoenix -- 46133
 	AddRecipe(46133, 365, 34374, Q.EPIC, V.TBC, 365, 375, 392, 410)
-	self:AddRecipeFlags(46133, F.ALLIANCE, F.HORDE, F.RAID, F.IBOE, F.RBOE, F.DPS, F.MAIL)
+	self:AddRecipeFlags(46133, F.ALLIANCE, F.HORDE, F.RAID, F.IBOE, F.RBOP, F.DPS, F.MAIL)
 	self:AddRecipeAcquire(46133, A.CUSTOM, 24)
 
 	-- Gloves of Immortal Dusk -- 46134
