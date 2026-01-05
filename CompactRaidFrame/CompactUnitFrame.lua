@@ -460,7 +460,8 @@ function CompactUnitFrame_UpdateHealthColor(frame)
             --Try to color it by class.
             local localizedClass, englishClass = UnitClass(frame.unit);
             local classColor = RAID_CLASS_COLORS[englishClass];
-            if ( (frame.optionTable.allowClassColorsForNPCs or UnitIsPlayer(frame.unit)) and classColor and frame.optionTable.useClassColors ) then
+            --if ( (frame.optionTable.allowClassColorsForNPCs or UnitIsPlayer(frame.unit)) and classColor and frame.optionTable.useClassColors ) then
+		if classColor then
                 -- Use class colors for players if class color option is turned on
                 r, g, b = classColor.r, classColor.g, classColor.b;
             elseif ( CompactUnitFrame_IsTapDenied(frame) ) then
