@@ -11702,3 +11702,10 @@ local BabbleZone = AtlasLoot_GetLocaleLibBabble("LibBabble-Zone-3.0")
 		Prev = "EmblemofFrost";
 		Back = "SETMENU";
 	};
+
+	--[[
+	AtlastLoot_Data["STORMFORGELEGENDARIES"] = {
+		{ 1, 
+		Back = "SETMENU";
+	};
+	]]

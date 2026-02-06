@@ -1,0 +1,60 @@
+------------------------------------------------------------------------
+r115 | Odlaw | 2010-10-07 15:11:02 +0000 (Thu, 07 Oct 2010) | 1 line
+Changed paths:
+   A /trunk/Modules/Equipable.lua
+   M /trunk/Modules/GuildGroup.lua
+   M /trunk/PassLoot.toc
+
+Add equipable filter - Will match on class based armor and weapons.
+------------------------------------------------------------------------
+r114 | Odlaw | 2010-09-29 15:59:55 +0000 (Wed, 29 Sep 2010) | 1 line
+Changed paths:
+   A /trunk/Modules/GuildGroup.lua
+   M /trunk/PassLoot.toc
+
+Added GuildGroup module - Matches when the group has a percentage of guild mates.
+------------------------------------------------------------------------
+r113 | Odlaw | 2010-09-29 15:08:11 +0000 (Wed, 29 Sep 2010) | 1 line
+Changed paths:
+   M /trunk/Modules/ItemLevel.lua
+
+Bug fix for ItemLevel module.
+------------------------------------------------------------------------
+r112 | Odlaw | 2010-09-22 18:35:21 +0000 (Wed, 22 Sep 2010) | 1 line
+Changed paths:
+   M /trunk/Modules/ItemLevel.lua
+
+ItemLevel can now use formulas and allows the keyword 'current' for your currently equipped item level.
+------------------------------------------------------------------------
+r111 | Odlaw | 2010-09-10 03:29:00 +0000 (Fri, 10 Sep 2010) | 1 line
+Changed paths:
+   M /trunk/PassLoot.toc
+
+toc fix
+------------------------------------------------------------------------
+r110 | Odlaw | 2010-09-05 16:20:32 +0000 (Sun, 05 Sep 2010) | 3 lines
+Changed paths:
+   M /trunk/Constants.lua
+   M /trunk/Modules/Bind.lua
+   A /trunk/Modules/CanIRoll.lua
+   M /trunk/Modules/ClassSpec.lua
+   M /trunk/Modules/Equipslot.lua
+   M /trunk/Modules/GroupRaid.lua
+   M /trunk/Modules/Inventory.lua
+   M /trunk/Modules/ItemLevel.lua
+   M /trunk/Modules/ItemPrice.lua
+   M /trunk/Modules/LearnedItem.lua
+   M /trunk/Modules/LootWon.lua
+   M /trunk/Modules/Quality.lua
+   M /trunk/Modules/RequiredLevel.lua
+   M /trunk/Modules/TypeSubType.lua
+   M /trunk/Modules/Unique.lua
+   M /trunk/Modules/Usable.lua
+   M /trunk/Modules/ZoneType.lua
+   M /trunk/PassLoot.lua
+   M /trunk/PassLoot.toc
+
+- Add options to change the loot rolling text.
+- Added requested "Can I Roll" filter.  (If you can roll need, you might want to look at it before rolling)
+- Updated toc: ## X-Compatibile-With: 40000
+------------------------------------------------------------------------

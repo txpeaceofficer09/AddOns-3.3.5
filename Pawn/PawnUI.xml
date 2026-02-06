@@ -1,4 +1,4 @@
-﻿<Ui xmlns="http://www.blizzard.com/wow/ui/">
+﻿<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../FrameXML.old/UI.xsd">
 
 	<!--
 		Pawn by Vger-Azjol-Nerub
@@ -31,31 +31,6 @@
 		</Backdrop>
 	</Frame>
 
-	<!-- Standard Pawn large frame template -->
-	<Frame name="PawnUIFrameTemplate" virtual="true" inherits="PawnUIDialogTemplate" parent="UIParent" frameStrata="DIALOG" hidden="true" movable="true">
-		<Layers>
-			<Layer level="ARTWORK">
-				<Texture name="$parent_HeaderBox" file="Interface\DialogFrame\UI-DialogBox-Header">
-					<Size><AbsDimension x="256" y="64" /></Size>
-					<Anchors><Anchor point="TOP"><Offset><AbsDimension x="0" y="12" /></Offset></Anchor></Anchors>
-				</Texture>
-				<FontString inherits="GameFontNormal" text="Pawn">
-					<Anchors><Anchor point="TOP" relativeTo="$parent_HeaderBox"><Offset><AbsDimension x="0" y="-14"/></Offset></Anchor></Anchors>
-				</FontString>
-			</Layer>
-		</Layers>
-		<Frames>
-			<Button name="$parent_TinyCloseButton" hidden="false" inherits="UIPanelCloseButton">
-				<Anchors><Anchor point="TOPRIGHT"><Offset><AbsDimension x="-8" y="8" /></Offset></Anchor></Anchors>
-			</Button>
-		</Frames>
-		<Scripts>
-			<OnMouseDown>this:StartMoving()</OnMouseDown>
-			<OnMouseUp>this:StopMovingOrSizing()</OnMouseUp>
-			<OnDragStop>this:StopMovingOrSizing()</OnDragStop>
-		</Scripts>
-	</Frame>
-	
 	<!-- Standard Pawn large frame tab template -->
 	<Frame name="PawnUITabPageTemplate" virtual="true" hidden="true">
 		<Anchors><Anchor point="TOPLEFT" /><Anchor point="BOTTOMRIGHT" /></Anchors>
@@ -79,10 +54,23 @@
 		</Scripts>
 	</CheckButton>
 
+	<CheckButton name="PawnUISmallCheckboxTemplate" inherits="UICheckButtonTemplate" virtual="true">
+		<Size><AbsDimension x="20" y="20" /></Size>
+		<HitRectInsets><AbsInset left="0" right="-160" top="0" bottom="0"/></HitRectInsets>
+		<Scripts>
+			<OnEnter>PawnUIFrame_TooltipOn(this)</OnEnter>
+			<OnLeave>PawnUIFrame_TooltipOff()</OnLeave>
+		</Scripts>
+	</CheckButton>
+
 	<!-- Label for standard Pawn options checkbox -->
 	<FontString name="PawnUICheckboxLabelTemplate" inherits="GameFontNormal" virtual="true" justifyH="LEFT" justifyV="MIDDLE">
 		<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="0" /></Offset></Anchor></Anchors>
 		<Size><AbsDimension x="250" y="25" /></Size>
+	</FontString>
+	<FontString name="PawnUISmallCheckboxLabelTemplate" inherits="GameFontNormalSmall" virtual="true" justifyH="LEFT" justifyV="MIDDLE">
+		<Anchors><Anchor point="LEFT"><Offset><AbsDimension x="20" y="0" /></Offset></Anchor></Anchors>
+		<Size><AbsDimension x="160" y="20" /></Size>
 	</FontString>
 
 	<!-- Standard Pawn options radio button template -->
@@ -102,14 +90,28 @@
 	</FontString>
 
 	<!-- Pawn list item templates -->
-	<Button name="PawnUIFrame_StatsList_ItemTemplate" virtual="true">
-		<Size><AbsDimension x="180" y="16" /></Size>
-		<NormalFont inherits="GameFontHighlight" justifyH="LEFT" />
-		<PushedTextOffset x="1" y="-1" />
-		<HighlightTexture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD" />
+	<Button name="PawnUIFrame_Generic_ItemTemplate" virtual="true">
 		<ButtonText name="$parentText" justifyH="LEFT" setAllPoints="true" />
+		<NormalFont style="GameFontHighlight" />
+		<HighlightFont style="GameFontHighlight" />
+		<DisabledFont style="PawnFontBlue" />
+		<PushedTextOffset x="1" y="-1" />
+		<HighlightTexture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD">
+			<Color r=".196" g=".388" b=".8" />
+		</HighlightTexture>
+	</Button>
+	
+	<Button name="PawnUIFrame_ScaleSelector_ItemTemplate" virtual="true" inherits="PawnUIFrame_Generic_ItemTemplate">
+		<Size><AbsDimension x="140" y="16" /></Size>
+		<DisabledFont style="PawnFontBlueSmall" />
 		<Scripts>
-			<OnLoad>self:GetHighlightTexture():SetVertexColor(.196, .388, .8)</OnLoad>
+			<OnClick>PawnUIFrame_ScaleSelector_OnClick(this)</OnClick>
+		</Scripts>
+	</Button>
+	
+	<Button name="PawnUIFrame_StatsList_ItemTemplate" virtual="true" inherits="PawnUIFrame_Generic_ItemTemplate">
+		<Size><AbsDimension x="180" y="16" /></Size>
+		<Scripts>
 			<OnClick>PawnUIFrame_StatsList_OnClick(this:GetID())</OnClick>
 		</Scripts>
 	</Button>
@@ -172,6 +174,43 @@
 		</Layers>
 	</Frame>
 	
+	<!-- A gem line in the gems list -->
+	<Button name="PawnUIGemLineTemplate" virtual="true">
+		<Size><AbsDimension x="515" y="17" /></Size>
+		<HighlightTexture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD">
+			<Color r=".196" g=".388" b=".8" />
+		</HighlightTexture>
+		<Layers>
+			<Layer level="ARTWORK">
+				<Texture name="$parentIcon">
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="1" y="1" /></Offset></Anchor></Anchors>
+					<Size><AbsDimension x="15" y="15" /></Size>
+				</Texture>
+				<FontString name="$parentName" inherits="GameFontHighlight" justifyH="LEFT" justifyV="MIDDLE">
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="18" y="0" /></Offset></Anchor></Anchors>
+					<Size><AbsDimension x="425" y="16" /></Size>
+				</FontString>
+			</Layer>
+		</Layers>
+		<Scripts>
+			<OnEnter>PawnUIFrame_GemList_OnEnter(self)</OnEnter>
+			<OnLeave>PawnUIFrame_GemList_OnLeave(self)</OnLeave>
+			<OnClick>PawnUIFrame_GemList_OnClick(self)</OnClick>
+		</Scripts>
+	</Button>
+
+	<Button name="PawnUIGemHeaderLineTemplate" virtual="true">
+		<Size><AbsDimension x="515" y="17" /></Size>
+		<Layers>
+			<Layer level="ARTWORK">
+				<FontString name="$parentName" inherits="PawnFontBlueSmall" justifyH="LEFT" justifyV="BOTTOM">
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="0" y="0" /></Offset></Anchor></Anchors>
+					<Size><AbsDimension x="425" y="16" /></Size>
+				</FontString>
+			</Layer>
+		</Layers>
+	</Button>
+	
 	<!-- Pawn's item scanning tooltip -->
 	<GameTooltip name="PawnPrivateTooltip" inherits="GameTooltipTemplate">
 		<Scripts>
@@ -192,25 +231,43 @@
 	<!-- The Pawn button on the inspect window -->
 	<Button name="PawnUI_InspectPawnButtonTemplate" virtual="true" inherits="PawnUI_InventoryButtonTemplate">
 		<Anchors><Anchor point="BOTTOMRIGHT" relativeTo="InspectPaperDollFrame" /></Anchors>
-		<NormalTexture file="Interface\AddOns\Pawn\Textures\PawnButton">
-			<TexCoords left="0.5" top="0.5" right="1" bottom="1" />
-		</NormalTexture>
-		<PushedTexture file="Interface\AddOns\Pawn\Textures\PawnButton">
-			<TexCoords left="0.5" top="0.5" right="1" bottom="1" />
-		</PushedTexture>
-		<HighlightTexture />
 		<Scripts>
 			<OnEnter>PawnUI_InspectPawnButton_OnEnter(this)</OnEnter>
 			<OnLeave>GameTooltip:Hide()</OnLeave>
+			<OnClick>PawnUIShow()</OnClick>
 		</Scripts>
 	</Button>
 	
+	<!-- The Pawn button on the socketing window -->
+	<Button name="PawnUI_SocketingPawnButtonTemplate" virtual="true" inherits="PawnUI_InventoryButtonTemplate">
+		<Anchors><Anchor point="TOPRIGHT" relativeTo="ItemSocketingFrame" /></Anchors>
+		<Scripts>
+			<OnEnter>PawnUI_SocketingPawnButton_OnEnter(this)</OnEnter>
+			<OnLeave>GameTooltip:Hide()</OnLeave>
+			<OnClick>PawnUIShowTab(PawnUIGemsTabPage, true)</OnClick>
+		</Scripts>
+	</Button>
+	
+	<!-- Pawn tooltips with a chunkier border -->
+	<GameTooltip name="PawnUI_FattyTooltip" virtual="true" inherits="GameTooltipTemplate">
+		<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+			<Color a="1" r="0" g="0" b="0" />
+			<BackgroundInsets><AbsInset left="2" right="2" top="2" bottom="2" /></BackgroundInsets>
+			<TileSize><AbsValue val="16" /></TileSize>
+			<EdgeSize><AbsValue val="16" /></EdgeSize>
+		</Backdrop>
+	</GameTooltip>
+	
 	<!-- The main Pawn configuration UI -->
-	<Frame name="PawnUIFrame" inherits="PawnUIFrameTemplate" toplevel="true" frameStrata="MEDIUM">
+	<Frame name="PawnUIFrame" inherits="PawnUIDialogTemplate" toplevel="true" parent="UIParent" frameStrata="MEDIUM" hidden="true" movable="true">
 		<Size><AbsDimension x="600" y="450" /></Size>
 
 		<Frames>
 
+			<Button name="PawnUIFrame_TinyCloseButton" hidden="false" inherits="UIPanelCloseButton">
+				<Anchors><Anchor point="TOPRIGHT"><Offset><AbsDimension x="-15" y="34" /></Offset></Anchor></Anchors>
+			</Button>
+			
 			<Button inherits="UIPanelButtonTemplate" text="PawnUIFrame_CloseButton_Text">
 				<Anchors><Anchor point="BOTTOMRIGHT"><Offset><AbsDimension x="-20" y="20" /></Offset></Anchor></Anchors>
 				<Size><AbsDimension x="95" y="25" /></Size>
@@ -219,93 +276,188 @@
 				</Scripts>
 			</Button>
 
-			<!-- The Scales tab -->
-			<Frame name="PawnUIScalesTabPage" hidden="true" inherits="PawnUITabPageTemplate">
+			<!-- The header tab -->
+			<Frame parent="PawnUIFrame" enableMouse="true">
+				<Size><AbsDimension x="600" y="75" /></Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" x="0" y="70" />
+				</Anchors>
+				<Backdrop bgFile="Interface\AddOns\Pawn\Textures\PawnUIHeader" tile="false" />
+				<Layers>
+					<Layer level="OVERLAY">
+						<Texture name="PawnUIFrame_HeaderLogo" file="Interface\AddOns\Pawn\Textures\PawnLogo">
+							<Size><AbsDimension x="64" y="32" /></Size>
+							<Anchors><Anchor point="TOPLEFT" x="17" y="-36" /></Anchors>
+						</Texture>
+						<FontString name="PawnUIHeader" inherits="GameFontNormalLarge" justifyH="LEFT" justifyV="MIDDLE" wordwrap="false">
+							<Size><AbsDimension x="440" y="32" /></Size>
+							<Anchors><Anchor point="TOPLEFT" x="110" y="-37" /></Anchors>
+						</FontString>
+					</Layer>
+				</Layers>
+				<Scripts>
+					<OnMouseDown>PawnUIFrame:StartMoving()</OnMouseDown>
+					<OnMouseUp>PawnUIFrame:StopMovingOrSizing()</OnMouseUp>
+					<OnDragStop>PawnUIFrame:StopMovingOrSizing()</OnDragStop>
+				</Scripts>
+			</Frame>
+			
+			<!-- The scale selector -->
+			<Frame name="PawnUIScaleSelector" parent="PawnUIFrame" enableMouse="true" inherits="PawnUIDialogTemplate" frameStrata="MEDIUM" hidden="true">
+				<Size><AbsDimension x="200" y="430" /></Size>
+				<Anchors>
+					<Anchor point="TOPRIGHT" relativePoint="TOPLEFT" x="12" y="-10" />
+				</Anchors>
+				<Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+					<Color a="1" r="0" g="0" b="0" />
+					<BackgroundInsets><AbsInset left="10" right="11" top="11" bottom="10" /></BackgroundInsets>
+					<TileSize><AbsValue val="32" /></TileSize>
+					<EdgeSize><AbsValue val="32" /></EdgeSize>
+				</Backdrop>
+
+				<Layers>
+					
+					<!-- Scale selector: art layer -->
+					<Layer level="ARTWORK">
+						
+						<FontString inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" wordwrap="false" text="PawnUIFrame_ScaleSelector_Header_Text">
+							<Anchors><Anchor point="TOPLEFT" x="15" y="-15" /></Anchors>
+							<Size><AbsDimension x="170" y="15" /></Size>
+						</FontString>
+						<Texture file="Interface\AddOns\Pawn\Textures\HorizontalBar">
+							<Anchors><Anchor point="TOPLEFT" x="10" y="-32" /></Anchors>
+							<Size><AbsDimension x="180" y="1" /></Size>
+						</Texture>
+						<Texture file="Interface\AddOns\Pawn\Textures\HorizontalBar">
+							<Anchors><Anchor point="TOPLEFT" x="10" y="-396" /></Anchors>
+							<Size><AbsDimension x="180" y="1" /></Size>
+						</Texture>
+
+					</Layer>
+					
+				</Layers>
+
+				<Frames>
+
+					<CheckButton name="PawnUIFrame_ShowScaleCheck" inherits="PawnUISmallCheckboxTemplate">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="15" y="-398" /></Offset></Anchor></Anchors>
+						<Layers><Layer level="ARTWORK">
+							<FontString name="$parent_Label" inherits="PawnUISmallCheckboxLabelTemplate" text="PawnUIFrame_ShowScaleCheck_Label_Text">
+								<Size><AbsDimension x="160" y="15" /></Size>
+							</FontString>
+						</Layer></Layers>
+						<Scripts><OnClick>PawnUIFrame_ShowScaleCheck_OnClick()</OnClick></Scripts>
+					</CheckButton>
+
+					<ScrollFrame name="PawnUIScaleSelectorScrollFrame" inherits="UIPanelScrollFrameTemplate">
+						<Anchors><Anchor point="TOPLEFT" x="15" y="-35" /></Anchors>
+						<Size><AbsDimension x="153" y="358" /></Size>
+						<ScrollChild>
+							<Frame name="PawnUIScaleSelectorScrollContent">
+								<Anchors><Anchor point="TOPLEFT" /></Anchors>
+								<Size><AbsDimension x="155" y="10" /></Size>
+								<!-- Content added dynamically, and size updated dynamically -->
+
+								<Frames>
+
+									<Frame name="PawnUIFrame_ScaleSelector_HighlightFrame" hidden="true">
+										<Anchors><Anchor point="TOPLEFT"></Anchor></Anchors>
+										<Size><AbsDimension x="155" y="16" /></Size>
+										<Layers>
+											<Layer level="ARTWORK">
+												<Texture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD" />
+												<Texture file="Interface\ChatFrame\ChatFrameExpandArrow">
+													<Anchors><Anchor point="RIGHT" x="0" y="0" /></Anchors>
+													<Size><AbsDimension x="14" y="14" /></Size>
+												</Texture>
+											</Layer>
+										</Layers>
+									</Frame>
+
+								</Frames>
+
+							</Frame>
+						</ScrollChild>
+					</ScrollFrame>
+					
+				</Frames>
 				
-				<!-- Scales tab: art layer -->
+			</Frame>
+			
+			<!-- The Scale tab -->
+			<Frame name="PawnUIScalesTabPage" hidden="true" inherits="PawnUITabPageTemplate">
+
+				<!-- Scale tab: art layer -->
 				<Layers>
 					<Layer level="ARTWORK">
-
-						<!-- "Current scale" area -->
-						<FontString name="PawnUIFrame_WelcomeLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="PawnUIFrame_WelcomeLabel_Text"><!-- Welcome to Pawn! -->
+						
+						<FontString inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="PawnUIFrame_ScalesWelcomeLabel_Text"><!-- Scales are sets of stats and values that are used to assign point values to items. -->
 							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-30"/></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="550" y="55" /></Size>
-						</FontString>
-						<FontString name="PawnUIFrame_AddScaleLabel" inherits="GameFontNormal" justifyH="RIGHT" justifyV="MIDDLE" text="PawnUIFrame_AddScaleLabel_Text"><!-- Add scale: -->
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-90"/></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="95" y="25" /></Size>
-						</FontString>
-						<FontString name="PawnUIFrame_CurrentScaleDropDown_Label" inherits="GameFontNormal" justifyH="RIGHT" justifyV="MIDDLE" text="PawnUIFrame_CurrentScaleDropDown_Label_Text"><!-- Current scale: -->
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-120"/></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="95" y="25" /></Size>
-						</FontString>
-
-						<!-- Stat editing area -->
-						<FontString name="PawnUIFrame_DescriptionLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="PawnUIFrame_DescriptionLabel_Text"><!-- The primary stat, Stamina. -->
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="255" y="-185"/></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="300" y="70" /></Size>
-						</FontString>
-						<FontString name="PawnUIFrame_StatNameLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="PawnUIFrame_StatNameLabel_Text"><!-- 1 Stamina is worth: -->
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="255" y="-260"/></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="300" y="20" /></Size>
+							<Size><AbsDimension x="550" y="40" /></Size>
 						</FontString>
 						
-						<!-- Footer -->
+						<!-- Scale settings area -->
+						<FontString name="PawnUIFrame_ScaleNameLabel" inherits="GameFontHighlightLarge" justifyH="LEFT" wordwrap="false"><!-- Name of scale -->
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-75"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="500" y="20" /></Size>
+						</FontString>
+						
 						<FontString name="PawnUIFrame_ScaleColorSwatch_Label" inherits="GameFontNormal" justifyH="LEFT" justifyV="MIDDLE" text="PawnUIFrame_ScaleColorSwatch_Label_Text"><!-- Change color -->
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="55" y="-380"/></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="100" y="20" /></Size>
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="320" y="-100"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="100" y="25" /></Size>
+						</FontString>
+
+						<FontString name="PawnUIFrame_ScaleTypeLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="MIDDLE"><!-- You can change this scale from the Values tab. -->
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="65" y="-130"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="500" y="20" /></Size>
+						</FontString>
+						
+						<!-- Share area -->
+						<FontString inherits="GameFontHighlightLarge" justifyH="LEFT" wordwrap="false" text="PawnUIFrame_ScaleSettingsShareHeader_Text"><!-- Share your scales -->
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-160"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="500" y="20" /></Size>
+						</FontString>
+
+						<FontString inherits="GameFontNormal" justifyH="LEFT" justifyV="MIDDLE" text="PawnUIFrame_ImportScaleButton_Label_Text">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="160" y="-190"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="400" y="25" /></Size>
+						</FontString>
+
+						<FontString inherits="GameFontNormal" justifyH="LEFT" justifyV="MIDDLE" text="PawnUIFrame_ExportScaleButton_Label_Text">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="160" y="-220"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="400" y="25" /></Size>
+						</FontString>
+
+						<!-- New scale area -->
+						<FontString inherits="GameFontHighlightLarge" justifyH="LEFT" wordwrap="false" text="PawnUIFrame_ScaleSettingsNewHeader_Text"><!-- Create a new scale -->
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-255"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="500" y="20" /></Size>
+						</FontString>
+
+						<FontString inherits="GameFontNormal" justifyH="LEFT" justifyV="MIDDLE" text="PawnUIFrame_CopyScaleButton_Label_Text">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="160" y="-285"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="400" y="25" /></Size>
+						</FontString>
+
+						<FontString inherits="GameFontNormal" justifyH="LEFT" justifyV="MIDDLE" text="PawnUIFrame_NewScaleButton_Label_Text">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="160" y="-315"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="400" y="25" /></Size>
+						</FontString>
+
+						<FontString inherits="GameFontNormal" justifyH="LEFT" justifyV="MIDDLE" text="PawnUIFrame_NewScaleFromDefaultsButton_Label_Text">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="160" y="-345"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="400" y="25" /></Size>
 						</FontString>
 
 					</Layer>
 				</Layers>
 
-				<!-- Scales tab: UI elements -->
+				<!-- Scale tab: UI elements -->
 				<Frames>
-
-					<!-- "Current scale" area -->
-					<Button name="PawnUIFrame_NewScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_NewScaleButton_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="190" y="-90" /></Offset></Anchor></Anchors>
-						<Size><AbsDimension x="90" y="25" /></Size>
-						<Scripts>
-							<OnClick>PawnUIFrame_NewScaleButton_OnClick()</OnClick>
-						</Scripts>
-					</Button>
-
-					<Button name="PawnUIFrame_NewScaleFromDefaultsButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_NewScaleFromDefaultsButton_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="285" y="-90" /></Offset></Anchor></Anchors>
-						<Size><AbsDimension x="90" y="25" /></Size>
-						<Scripts>
-							<OnClick>PawnUIFrame_NewScaleFromDefaultsButton_OnClick()</OnClick>
-						</Scripts>
-					</Button>
-
-					<Button name="PawnUIFrame_CopyScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_CopyScaleButton_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="380" y="-90" /></Offset></Anchor></Anchors>
-						<Size><AbsDimension x="90" y="25" /></Size>
-						<Scripts>
-							<OnClick>PawnUIFrame_CopyScaleButton_OnClick()</OnClick>
-						</Scripts>
-					</Button>
-
-					<Button name="PawnUIFrame_ImportScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_ImportScaleButton_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="475" y="-90" /></Offset></Anchor></Anchors>
-						<Size><AbsDimension x="90" y="25" /></Size>
-						<Scripts>
-							<OnClick>PawnUIFrame_ImportScaleButton_OnClick()</OnClick>
-						</Scripts>
-					</Button>
-
-					<Button name="PawnUIFrame_CurrentScaleDropDown" hidden="false" inherits="UIDropDownMenuTemplate" text="PawnUIFrame_CurrentScaleDropDown_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="110" y="-120"/></Offset></Anchor></Anchors>
-						<Scripts>
-							<OnEnter>PawnUIFrame_TooltipOn(this)</OnEnter>
-							<OnLeave>PawnUIFrame_TooltipOff()</OnLeave>
-							<OnShow>PawnUIFrame_CurrentScaleDropDown_OnShow()</OnShow>
-						</Scripts>
-					</Button>
-
+					
+					<!-- Scale settings area -->
 					<Button name="PawnUIFrame_RenameScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_RenameScaleButton_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="285" y="-120" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="60" y="-100" /></Offset></Anchor></Anchors>
 						<Size><AbsDimension x="90" y="25" /></Size>
 						<Scripts>
 							<OnClick>PawnUIFrame_RenameScaleButton_OnClick()</OnClick>
@@ -313,25 +465,124 @@
 					</Button>
 
 					<Button name="PawnUIFrame_DeleteScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_DeleteScaleButton_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="380" y="-120" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="160" y="-100" /></Offset></Anchor></Anchors>
 						<Size><AbsDimension x="90" y="25" /></Size>
 						<Scripts>
 							<OnClick>PawnUIFrame_DeleteScaleButton_OnClick()</OnClick>
 						</Scripts>
 					</Button>
+
+					<Button name="PawnUIFrame_ScaleColorSwatch">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="280" y="-93" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="40" y="40" /></Size>
+						<NormalTexture file="Interface\Buttons\UI-RotationLeft-Button-Up" />
+						<PushedTexture file="Interface\Buttons\UI-RotationLeft-Button-Down" />
+						<HighlightTexture file="Interface\Buttons\ButtonHilight-Round" alphaMode="ADD" />
+						<Layers>
+							<Layer level="OVERLAY">
+								<Texture name="PawnUIFrame_ScaleColorSwatch_Color">
+									<Size><AbsDimension x="14" y="14" /></Size>
+									<Anchors><Anchor point="CENTER"><Offset><AbsDimension x="0" y="0" /></Offset></Anchor></Anchors>
+									<Color r ="1.0" g="1.0" b="1.0" a="1.0" />
+								</Texture>
+							</Layer>
+						</Layers>
+						<Scripts>
+							<OnEnter>PawnUIFrame_TooltipOn(this)</OnEnter>
+							<OnLeave>PawnUIFrame_TooltipOff()</OnLeave>
+							<OnClick>PawnUIFrame_ScaleColorSwatch_OnClick()</OnClick>
+						</Scripts>
+					</Button>
 					
+					<!-- Share area -->
+					<Button name="PawnUIFrame_ImportScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_ImportScaleButton_Text">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="60" y="-190" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="90" y="25" /></Size>
+						<Scripts>
+							<OnClick>PawnUIFrame_ImportScaleButton_OnClick()</OnClick>
+						</Scripts>
+					</Button>
+
 					<Button name="PawnUIFrame_ExportScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_ExportScaleButton_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="475" y="-120" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="60" y="-220" /></Offset></Anchor></Anchors>
 						<Size><AbsDimension x="90" y="25" /></Size>
 						<Scripts>
 							<OnClick>PawnUIFrame_ExportScaleButton_OnClick()</OnClick>
 						</Scripts>
 					</Button>
-					
+
+					<!-- New scale area -->
+					<Button name="PawnUIFrame_CopyScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_CopyScaleButton_Text">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="60" y="-285" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="90" y="25" /></Size>
+						<Scripts>
+							<OnClick>PawnUIFrame_CopyScaleButton_OnClick()</OnClick>
+						</Scripts>
+					</Button>
+
+					<Button name="PawnUIFrame_NewScaleButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_NewScaleButton_Text">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="60" y="-315" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="90" y="25" /></Size>
+						<Scripts>
+							<OnClick>PawnUIFrame_NewScaleButton_OnClick()</OnClick>
+						</Scripts>
+					</Button>
+
+					<Button name="PawnUIFrame_NewScaleFromDefaultsButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_NewScaleFromDefaultsButton_Text">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="60" y="-345" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="90" y="25" /></Size>
+						<Scripts>
+							<OnClick>PawnUIFrame_NewScaleFromDefaultsButton_OnClick()</OnClick>
+						</Scripts>
+					</Button>
+
+				</Frames>
+
+				<Scripts>
+					<OnShow>
+						PawnUI_ScalesTab_Refresh()
+					</OnShow>
+				</Scripts>
+				
+			</Frame>
+				
+			<!-- The Values tab -->
+			<Frame name="PawnUIValuesTabPage" hidden="true" inherits="PawnUITabPageTemplate">
+				
+				<!-- Values tab: art layer -->
+				<Layers>
+					<Layer level="ARTWORK">
+
+						<!-- Header area -->
+						<FontString name="PawnUIFrame_ValuesWelcomeLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-30"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="550" y="55" /></Size>
+						</FontString>
+
+						<!-- Stat editing area -->
+						<FontString name="PawnUIFrame_DescriptionLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="PawnUIFrame_DescriptionLabel_Text"><!-- The primary stat, Stamina. -->
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="255" y="-105"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="300" y="120" /></Size>
+						</FontString>
+						<FontString name="PawnUIFrame_StatNameLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="PawnUIFrame_StatNameLabel_Text"><!-- 1 Stamina is worth: -->
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="255" y="-230"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="300" y="20" /></Size>
+						</FontString>
+						<FontString name="PawnUIFrame_StatValueLabel" inherits="ChatFontNormal" justifyH="LEFT" justifyV="MIDDLE"><!-- 1.234 -->
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="275" y="-255"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="140" y="25" /></Size>
+						</FontString>
+						
+					</Layer>
+				</Layers>
+
+				<!-- Values tab: UI elements -->
+				<Frames>
+
 					<!-- Stats list -->
 					<Frame>
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="20" y="-165" /></Offset></Anchor></Anchors>
-						<Size><AbsDimension x="213" y="206" /></Size>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="20" y="-80" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="213" y="304" /></Size>
 						<Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" edgeFile="Interface\Tooltips\UI-Tooltip-Border" tile="true">
 							<Color a="0.5" r="0" g="0" b="0" />
 							<EdgeSize><AbsValue val="16" /></EdgeSize>
@@ -340,18 +591,10 @@
 						</Backdrop>
 					</Frame>
 					<ScrollFrame name="PawnUIFrame_StatsList" inherits="FauxScrollFrameTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-170" /></Offset></Anchor></Anchors>
-						<Size><AbsDimension x="180" y="196" /></Size>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-86" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="180" y="292" /></Size>
 						<Scripts>
-							<OnVerticalScroll>
-								if PawnIsWoW3() then
-									-- *** WoW 3.0 version
-									FauxScrollFrame_OnVerticalScroll(PawnUIFrame_StatsList, offset, 16, PawnUIFrame_StatsList_Update)
-								else
-									-- *** WoW 2.4 version
-									FauxScrollFrame_OnVerticalScroll(16, PawnUIFrame_StatsList_Update)
-								end
-							</OnVerticalScroll>
+							<OnVerticalScroll>FauxScrollFrame_OnVerticalScroll(PawnUIFrame_StatsList, offset, 16, PawnUIFrame_StatsList_Update)</OnVerticalScroll>
 							<OnShow>PawnUIFrame_StatsList_Update()</OnShow>
 						</Scripts>
 					</ScrollFrame>
@@ -405,10 +648,28 @@
 					<Button name="PawnUIFrame_StatsList_Item12" id="12" inherits="PawnUIFrame_StatsList_ItemTemplate">
 						<Anchors><Anchor point="TOPLEFT" relativeTo="PawnUIFrame_StatsList_Item11" relativePoint="BOTTOMLEFT" /></Anchors>
 					</Button>
+					<Button name="PawnUIFrame_StatsList_Item13" id="13" inherits="PawnUIFrame_StatsList_ItemTemplate">
+						<Anchors><Anchor point="TOPLEFT" relativeTo="PawnUIFrame_StatsList_Item12" relativePoint="BOTTOMLEFT" /></Anchors>
+					</Button>
+					<Button name="PawnUIFrame_StatsList_Item14" id="14" inherits="PawnUIFrame_StatsList_ItemTemplate">
+						<Anchors><Anchor point="TOPLEFT" relativeTo="PawnUIFrame_StatsList_Item13" relativePoint="BOTTOMLEFT" /></Anchors>
+					</Button>
+					<Button name="PawnUIFrame_StatsList_Item15" id="15" inherits="PawnUIFrame_StatsList_ItemTemplate">
+						<Anchors><Anchor point="TOPLEFT" relativeTo="PawnUIFrame_StatsList_Item14" relativePoint="BOTTOMLEFT" /></Anchors>
+					</Button>
+					<Button name="PawnUIFrame_StatsList_Item16" id="16" inherits="PawnUIFrame_StatsList_ItemTemplate">
+						<Anchors><Anchor point="TOPLEFT" relativeTo="PawnUIFrame_StatsList_Item15" relativePoint="BOTTOMLEFT" /></Anchors>
+					</Button>
+					<Button name="PawnUIFrame_StatsList_Item17" id="17" inherits="PawnUIFrame_StatsList_ItemTemplate">
+						<Anchors><Anchor point="TOPLEFT" relativeTo="PawnUIFrame_StatsList_Item16" relativePoint="BOTTOMLEFT" /></Anchors>
+					</Button>
+					<Button name="PawnUIFrame_StatsList_Item18" id="18" inherits="PawnUIFrame_StatsList_ItemTemplate">
+						<Anchors><Anchor point="TOPLEFT" relativeTo="PawnUIFrame_StatsList_Item17" relativePoint="BOTTOMLEFT" /></Anchors>
+					</Button>
 
 					<!-- Description and editing area -->
 					<EditBox name="PawnUIFrame_StatValueBox" inherits="InputBoxTemplate" hidden="false">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="275" y="-285"/></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="275" y="-255"/></Offset></Anchor></Anchors>
 						<Size><AbsDimension x="140" y="25" /></Size>
 						<Scripts>
 							<OnTextChanged>PawnUIFrame_StatValueBox_OnTextChanged()</OnTextChanged>
@@ -416,7 +677,7 @@
 					</EditBox>
 					
 					<Button name="PawnUIFrame_ClearValueButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_ClearValueButton_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="425" y="-285" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="425" y="-255" /></Offset></Anchor></Anchors>
 						<Size><AbsDimension x="90" y="25" /></Size>
 						<Scripts>
 							<OnClick>PawnUIFrame_ClearValueButton_OnClick()</OnClick>
@@ -424,7 +685,7 @@
 					</Button>
 					
 					<Frame name="PawnUIFrame_ScaleSocketOptionsList" hidden="true">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="275" y="-320" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="275" y="-290" /></Offset></Anchor></Anchors>
 						<Size><AbsDimension x="225" y="45" /></Size>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="PawnUIFrame_ScaleSocketOptionsHeaderLabel" inherits="PawnUIRadioButtonLabelTemplate" justifyH="LEFT" justifyV="MIDDLE" text="PawnUIFrame_ScaleSocketOptionsHeaderLabel_Text">
@@ -450,48 +711,21 @@
 						</Frames>
 					</Frame>
 
-					<!-- Footer -->
-					
-					<Button name="PawnUIFrame_ScaleColorSwatch">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="15" y="-370" /></Offset></Anchor></Anchors>
-						<Size><AbsDimension x="40" y="40" /></Size>
-						<NormalTexture file="Interface\Buttons\UI-RotationLeft-Button-Up" />
-						<PushedTexture file="Interface\Buttons\UI-RotationLeft-Button-Down" />
-						<HighlightTexture file="Interface\Buttons\ButtonHilight-Round" alphaMode="ADD" />
-						<Layers>
-							<Layer level="OVERLAY">
-								<Texture name="PawnUIFrame_ScaleColorSwatch_Color">
-									<Size><AbsDimension x="14" y="14" /></Size>
-									<Anchors><Anchor point="CENTER"><Offset><AbsDimension x="0" y="0" /></Offset></Anchor></Anchors>
-									<Color r ="1.0" g="1.0" b="1.0" a="1.0" />
-								</Texture>
-							</Layer>
-						</Layers>
-						<Scripts>
-							<OnEnter>PawnUIFrame_TooltipOn(this)</OnEnter>
-							<OnLeave>PawnUIFrame_TooltipOff()</OnLeave>
-							<OnClick>PawnUIFrame_ScaleColorSwatch_OnClick()</OnClick>
-						</Scripts>
-					</Button>
-
-					<CheckButton name="PawnUIFrame_ShowScaleCheck" inherits="PawnUICheckboxTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="175" y="-377" /></Offset></Anchor></Anchors>
+					<CheckButton name="PawnUIFrame_NormalizeValuesCheck" inherits="PawnUICheckboxTemplate">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="30" y="-400" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
-							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_ShowScaleCheck_Label_Text" />
+							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_NormalizeValuesCheck_Text" />
 						</Layer></Layers>
-						<Scripts><OnClick>PawnUIFrame_ShowScaleCheck_OnClick()</OnClick></Scripts>
+						<Scripts><OnClick>PawnUIFrame_NormalizeValuesCheck_OnClick()</OnClick></Scripts>
 					</CheckButton>
 
 				</Frames>
 				
 				<Scripts>
 					<OnShow>
+						PawnUI_ValuesTab_Refresh()
 						PawnUIFrame_StatsList_SelectStat(0)
 					</OnShow>
-					<OnHide>
-						PawnUIStringDialog:Hide()
-						ColorPickerFrame:Hide()
-					</OnHide>
 				</Scripts>
 						
 			</Frame>
@@ -500,6 +734,47 @@
 			<Frame name="PawnUICompareTabPage" hidden="true" inherits="PawnUITabPageTemplate">
 				<Layers>
 
+					<Layer level="OVERLAY">
+						
+						<!-- The item header area -->
+						
+						<Texture file="Interface\AddOns\Pawn\Textures\HorizontalBar">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-69" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="580" y="1" /></Size>
+						</Texture>
+
+						<!-- The total score row -->
+
+						<FontString name="PawnUICompareItemScoreDifference1" inherits="GameFontRed" justifyH="CENTER" justifyV="MIDDLE">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="70" y="-353" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="60" y="37" /></Size>
+						</FontString>
+						<FontString name="PawnUICompareItemScore1" inherits="GameFontNormalLarge" justifyH="CENTER" justifyV="MIDDLE" outline="THICK">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="150" y="-353" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="60" y="37" /></Size>
+						</FontString>
+						<FontString name="PawnUICompareItemScore2" inherits="GameFontNormalLarge" justifyH="CENTER" justifyV="MIDDLE" outline="THICK">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="390" y="-353" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="60" y="37" /></Size>
+						</FontString>
+						<FontString name="PawnUICompareItemScoreDifference2" inherits="GameFontGreen" justifyH="CENTER" justifyV="MIDDLE">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="470" y="-353" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="60" y="37" /></Size>
+						</FontString>
+						
+						<Texture name="PawnUICompareItemScoreArrow1" file="Interface\AddOns\Pawn\Textures\UpgradeArrowBig">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="205" y="-360" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="40" y="40" /></Size>
+							<TexCoords left=".5" top="0" right="1" bottom="1" />
+						</Texture>
+						<Texture name="PawnUICompareItemScoreArrow2" file="Interface\AddOns\Pawn\Textures\UpgradeArrowBig">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="355" y="-360" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="40" y="40" /></Size>
+							<TexCoords left="0" top="0" right=".5" bottom="1" />
+						</Texture>
+						
+					</Layer>
+					
 					<!-- Compare tab: art layer -->
 					<Layer level="ARTWORK">
 
@@ -513,64 +788,42 @@
 							<Anchors><Anchor point="TOPRIGHT"><Offset><AbsDimension x="-65" y="-23" /></Offset></Anchor></Anchors>
 							<Size><AbsDimension x="170" y="37" /></Size>
 						</FontString>
-						<FontString inherits="PawnFontSilverLarge" justifyH="CENTER" justifyV="MIDDLE" text="PawnUIFrame_VersusHeader_Text">
+						<FontString inherits="PawnFontSilverLarge" justifyH="CENTER" justifyV="MIDDLE" text="PawnUIFrame_VersusHeader_Text"><!-- —vs.— -->
 							<Anchors><Anchor point="TOPRIGHT"><Offset><AbsDimension x="-225" y="-33" /></Offset></Anchor></Anchors>
 							<Size><AbsDimension x="150" y="20" /></Size>
 						</FontString>
 						
-						<!-- The stat lines -->
-
-						<Texture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-69" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="580" y="1" /></Size>
-							<Color r ="0.56" g="0.76" b="0.90" a="0.1" />
-						</Texture>
-
 						<!-- The total score row -->
 
-						<Texture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="MOD">
+						<Texture name="PawnUICompareItemScoreHighlight1" file="Interface\AddOns\Pawn\Textures\CompareBarLeft">
 							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-351" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="580" y="40" /></Size>
-							<Color r ="0" g="0" b="0" a="1.0" />
+							<Size><AbsDimension x="290" y="40" /></Size>
+							<TexCoords left="0" top="0" right="1" bottom="0.5625" />
 						</Texture>
-						<Texture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-350" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="580" y="1" /></Size>
-							<Color r ="0.56" g="0.76" b="0.90" a="0.1" />
-						</Texture>
-						<Texture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-391" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="580" y="1" /></Size>
-							<Color r ="0.56" g="0.76" b="0.90" a="0.1" />
-						</Texture>
-
-						<Texture name="PawnUICompareItemScoreHighlight1" file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="30" y="-351" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="200" y="40" /></Size>
-							<Color r ="0.56" g="0.76" b="0.90" a="0.3" />
-						</Texture>
-						<Texture name="PawnUICompareItemScoreHighlight2" file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="ADD">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="370" y="-351" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="200" y="40" /></Size>
-							<Color r ="0.56" g="0.76" b="0.90" a="0.3" />
+						<Texture name="PawnUICompareItemScoreHighlight2" file="Interface\AddOns\Pawn\Textures\CompareBarRight">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="300" y="-351" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="290" y="40" /></Size>
+							<TexCoords left="0" top="0" right="1" bottom="0.5625" />
 						</Texture>
 						
-						<FontString name="PawnUICompareItemScoreDifference1" inherits="GameFontRed" justifyH="CENTER" justifyV="MIDDLE">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="70" y="-353" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="60" y="37" /></Size>
-						</FontString>
-						<FontString name="PawnUICompareItemScore1" inherits="GameFontNormalLarge" justifyH="CENTER" justifyV="MIDDLE">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="150" y="-353" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="60" y="37" /></Size>
-						</FontString>
-						<FontString name="PawnUICompareItemScore2" inherits="GameFontNormalLarge" justifyH="CENTER" justifyV="MIDDLE">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="390" y="-353" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="60" y="37" /></Size>
-						</FontString>
-						<FontString name="PawnUICompareItemScoreDifference2" inherits="GameFontGreen" justifyH="CENTER" justifyV="MIDDLE">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="470" y="-353" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="60" y="37" /></Size>
-						</FontString>
+					</Layer>
+
+					<Layer level="BORDER">
+						
+						<Texture file="Interface\AddOns\Pawn\Textures\CompareBar">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-351" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="580" y="40" /></Size>
+							<TexCoords left="0" top="0" right="1" bottom="0.5625" />
+						</Texture>
+						
+					</Layer>
+
+					<Layer level="BACKGROUND">
+						
+						<Texture file="Interface\AddOns\Pawn\Textures\CompareBanner">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="210" y="-69" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="180" y="360" /></Size>
+						</Texture>
 						
 					</Layer>
 
@@ -619,15 +872,6 @@
 					<ScrollFrame name="PawnUICompareScrollFrame" inherits="UIPanelScrollFrameTemplate">
 						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="70" y="-72" /></Offset></Anchor></Anchors>
 						<Size><AbsDimension x="485" y="278" /></Size>
-						<Layers>
-							<Layer level="BACKGROUND">
-								<Texture file="Interface\QuestFrame\UI-QuestLogTitleHighlight" alphaMode="MOD">
-									<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="145" y="0" /></Offset></Anchor></Anchors>
-									<Size><AbsDimension x="170" y="278" /></Size>
-									<Color r ="0" g="0" b="0" a="0.2" />
-								</Texture>
-							</Layer>
-						</Layers>
 						<ScrollChild>
 							<Frame name="PawnUICompareScrollContent">
 								<Anchors><Anchor point="TOPLEFT" /></Anchors>
@@ -638,26 +882,22 @@
 					</ScrollFrame>
 
 					<Frame name="PawnUICompareMissingItemInfoFrame" hidden="true">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="100" y="-100" /></Offset></Anchor></Anchors>
-						<Size><AbsDimension x="400" y="225" /></Size>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="20" y="-72" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="560" y="278" /></Size>
 						<Layers>
 							<Layer level="BACKGROUND">
-								<FontString inherits="GameFontNormal" setAllPoints="true" justifyH="CENTER" justifyV="MIDDLE" text="PawnUIFrame_CompareMissingItemInfo_Text" />
+								<FontString inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="PawnUIFrame_CompareMissingItemInfo_TextLeft">
+									<Anchors><Anchor point="TOPLEFT" x="20" y="-10" /></Anchors>
+									<Size><AbsDimension x="240" y="120" /></Size>
+								</FontString>
+								<FontString inherits="GameFontNormal" justifyH="RIGHT" justifyV="TOP" text="PawnUIFrame_CompareMissingItemInfo_TextRight">
+									<Anchors><Anchor point="TOPRIGHT" x="-20" y="-10" /></Anchors>
+									<Size><AbsDimension x="240" y="120" /></Size>
+								</FontString>
 							</Layer>
 						</Layers>
 					</Frame>
 					
-					<!-- The total score row -->
-					
-					<Button name="PawnUIFrame_CurrentCompareScaleDropDown" hidden="false" inherits="UIDropDownMenuTemplate" text="PawnUIFrame_CurrentCompareScaleDropDown_Label_Text">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="210" y="-357"/></Offset></Anchor></Anchors>
-						<Scripts>
-							<OnEnter>PawnUIFrame_TooltipOn(this)</OnEnter>
-							<OnLeave>PawnUIFrame_TooltipOff()</OnLeave>
-							<OnShow>PawnUIFrame_CurrentScaleDropDown_OnShow()</OnShow>
-						</Scripts>
-					</Button>
-
 					<!-- The item shortcuts row -->
 
 					<Button name="PawnUIFrame_CompareSwapButton" inherits="PawnUIButtonTemplate" text="PawnUIFrame_CompareSwapButton_Text">
@@ -728,6 +968,73 @@
 					
 			</Frame>
 			
+			<!-- The Gems tab -->
+			<Frame name="PawnUIGemsTabPage" hidden="true" inherits="PawnUITabPageTemplate">
+				<Layers>
+
+					<!-- Gems tab: art layer -->
+					<Layer level="ARTWORK">
+						
+						<!-- The header area -->
+						<FontString name="PawnUIFrame_GemsHeaderLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="PawnUIFrame_GemsHeaderLabel_Text">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-30" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="550" y="30" /></Size>
+						</FontString>
+
+						<FontString name="PawnUIFrame_GemQualityDropDown_Label" inherits="GameFontNormal" justifyH="RIGHT" justifyV="MIDDLE" text="PawnUIFrame_GemQualityDropDown_Label_Text"><!-- Quality: -->
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="345" y="-70"/></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="70" y="25" /></Size>
+						</FontString>
+
+						<Texture file="Interface\AddOns\Pawn\Textures\HorizontalBar">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-104" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="580" y="1" /></Size>
+						</Texture>
+						<Texture file="Interface\AddOns\Pawn\Textures\HorizontalBar">
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-399" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="580" y="1" /></Size>
+						</Texture>
+
+					</Layer>
+
+				</Layers>
+				
+				<!-- Gems tab: UI elements -->
+				<Frames>
+					
+					<!-- The header area -->
+					
+					<Button name="PawnUIFrame_GemQualityDropDown" hidden="false" inherits="UIDropDownMenuTemplate" text="PawnUIFrame_GemQualityDropDown_Text">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="405" y="-70"/></Offset></Anchor></Anchors>
+						<Scripts>
+							<OnEnter>PawnUIFrame_TooltipOn(this)</OnEnter>
+							<OnLeave>PawnUIFrame_TooltipOff()</OnLeave>
+							<OnShow>PawnUIFrame_GemQualityDropDown_OnShow()</OnShow>
+						</Scripts>
+					</Button>
+					
+					<!-- The scrolling gem list -->
+
+					<ScrollFrame name="PawnUIGemScrollFrame" inherits="UIPanelScrollFrameTemplate">
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-107" /></Offset></Anchor></Anchors>
+						<Size><AbsDimension x="535" y="289" /></Size>
+						<ScrollChild>
+							<Frame name="PawnUIGemScrollContent">
+								<Anchors><Anchor point="TOPLEFT" /></Anchors>
+								<Size><AbsDimension x="465" y="100" /></Size>
+								<!-- Content is added dynamically, and size is updated dynamically as well. -->
+							</Frame>
+						</ScrollChild>
+					</ScrollFrame>
+
+				</Frames>
+
+				<Scripts>
+					<OnShow>PawnUI_InitGemsTab()</OnShow>
+				</Scripts>
+					
+			</Frame>
+
 			<!-- The Options tab -->
 			<Frame name="PawnUIOptionsTabPage" hidden="true" inherits="PawnUITabPageTemplate">
 				<Layers>
@@ -746,7 +1053,7 @@
 						</FontString>
 
 						<FontString name="PawnUIFrame_AsterisksHeaderLabel" inherits="GameFontNormal" justifyH="LEFT" justifyV="MIDDLE" text="PawnUIFrame_AsterisksHeaderLabel_Text">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-245" /></Offset></Anchor></Anchors>
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-235" /></Offset></Anchor></Anchors>
 							<Size><AbsDimension x="225" y="25" /></Size>
 						</FontString>
 
@@ -777,16 +1084,8 @@
 				<Frames>
 
 					<!-- Tooltip options -->
-					<CheckButton name="PawnUIFrame_ShowItemLevelsCheck" inherits="PawnUICheckboxTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-120" /></Offset></Anchor></Anchors>
-						<Layers><Layer level="ARTWORK">
-							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_ShowItemLevelsCheck_Text" />
-						</Layer></Layers>
-						<Scripts><OnClick>PawnUIFrame_ShowItemLevelsCheck_OnClick()</OnClick></Scripts>
-					</CheckButton>
-
 					<CheckButton name="PawnUIFrame_ShowItemIDsCheck" inherits="PawnUICheckboxTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-145" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-120" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_ShowItemIDsCheck_Text" />
 						</Layer></Layers>
@@ -794,7 +1093,7 @@
 					</CheckButton>
 
 					<CheckButton name="PawnUIFrame_ShowIconsCheck" inherits="PawnUICheckboxTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-170" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-145" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_ShowIconsCheck_Text" />
 						</Layer></Layers>
@@ -802,7 +1101,7 @@
 					</CheckButton>
 
 					<CheckButton name="PawnUIFrame_ShowExtraSpaceCheck" inherits="PawnUICheckboxTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-195" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-170" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_ShowExtraSpaceCheck_Text" />
 						</Layer></Layers>
@@ -810,7 +1109,7 @@
 					</CheckButton>
 
 					<CheckButton name="PawnUIFrame_AlignRightCheck" inherits="PawnUICheckboxTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-220" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-195" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_AlignRightCheck_Text" />
 						</Layer></Layers>
@@ -818,28 +1117,21 @@
 					</CheckButton>
 
 					<CheckButton name="PawnUIFrame_AsterisksAutoRadio" inherits="PawnUIRadioButtonTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-270" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-260" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="$parent_Label" inherits="PawnUIRadioButtonLabelTemplate" text="PawnUIFrame_AsterisksAutoRadio_Text" />
 						</Layer></Layers>
 						<Scripts><OnClick>PawnUIFrame_AsterisksList_SetSelection(PawnShowAsterisksNonzero)</OnClick></Scripts>
 					</CheckButton>
 					<CheckButton name="PawnUIFrame_AsterisksAutoNoTextRadio" inherits="PawnUIRadioButtonTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-290" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-280" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="$parent_Label" inherits="PawnUIRadioButtonLabelTemplate" text="PawnUIFrame_AsterisksAutoNoTextRadio_Text" />
 						</Layer></Layers>
 						<Scripts><OnClick>PawnUIFrame_AsterisksList_SetSelection(PawnShowAsterisksNonzeroNoText)</OnClick></Scripts>
 					</CheckButton>
-					<CheckButton name="PawnUIFrame_AsterisksOnRadio" inherits="PawnUIRadioButtonTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-310" /></Offset></Anchor></Anchors>
-						<Layers><Layer level="ARTWORK">
-							<FontString name="$parent_Label" inherits="PawnUIRadioButtonLabelTemplate" text="PawnUIFrame_AsterisksOnRadio_Text" />
-						</Layer></Layers>
-						<Scripts><OnClick>PawnUIFrame_AsterisksList_SetSelection(PawnShowAsterisksAlways)</OnClick></Scripts>
-					</CheckButton>
 					<CheckButton name="PawnUIFrame_AsterisksOffRadio" inherits="PawnUIRadioButtonTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-330" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="50" y="-300" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="$parent_Label" inherits="PawnUIRadioButtonLabelTemplate" text="PawnUIFrame_AsterisksOffRadio_Text" />
 						</Layer></Layers>
@@ -873,16 +1165,8 @@
 						<Scripts><OnClick>PawnUIFrame_EnchantedValuesCheck_OnClick()</OnClick></Scripts>
 					</CheckButton>
 
-					<CheckButton name="PawnUIFrame_NormalizeValuesCheck" inherits="PawnUICheckboxTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="300" y="-195" /></Offset></Anchor></Anchors>
-						<Layers><Layer level="ARTWORK">
-							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_NormalizeValuesCheck_Text" />
-						</Layer></Layers>
-						<Scripts><OnClick>PawnUIFrame_NormalizeValuesCheck_OnClick()</OnClick></Scripts>
-					</CheckButton>
-
 					<CheckButton name="PawnUIFrame_DebugCheck" inherits="PawnUICheckboxTemplate">
-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="300" y="-220" /></Offset></Anchor></Anchors>
+						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="300" y="-195" /></Offset></Anchor></Anchors>
 						<Layers><Layer level="ARTWORK">
 							<FontString name="$parent_Label" inherits="PawnUICheckboxLabelTemplate" text="PawnUIFrame_DebugCheck_Text" />
 						</Layer></Layers>
@@ -950,11 +1234,11 @@
 
 						<FontString name="PawnUIFrame_ReadmeLabel" inherits="GameFontHighlight" justifyH="LEFT" text="PawnUIFrame_ReadmeLabel_Text">
 							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-100" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="550" y="50" /></Size>
+							<Size><AbsDimension x="550" y="70" /></Size>
 						</FontString>
 						<FontString name="PawnUIFrame_WebsiteLabel" inherits="GameFontNormal" justifyH="LEFT" text="PawnUIFrame_WebsiteLabel_Text">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-150" /></Offset></Anchor></Anchors>
-							<Size><AbsDimension x="550" y="50" /></Size>
+							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="25" y="-180" /></Offset></Anchor></Anchors>
+							<Size><AbsDimension x="550" y="70" /></Size>
 						</FontString>
 
 					</Layer>
@@ -989,43 +1273,61 @@
 				<Scripts>
 					<OnClick>
 						PlaySound("igCharacterInfoTab")
-						PawnUISwitchToTab(1)
+						PawnUISwitchToTab(PawnUIScalesTabPage)
 					</OnClick>
 				</Scripts>
 			</Button>
-			<Button name="$parentTab2" inherits="CharacterFrameTabButtonTemplate" id="2" text="PawnUIFrame_CompareTab_Text">
+			<Button name="$parentTab2" inherits="CharacterFrameTabButtonTemplate" id="2" text="PawnUIFrame_ValuesTab_Text">
 				<Anchors><Anchor point="LEFT" relativeTo="$parentTab1" relativePoint="RIGHT"><Offset><AbsDimension x="-16" y="0" /></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnClick>
 						PlaySound("igCharacterInfoTab")
-						PawnUISwitchToTab(2)
+						PawnUISwitchToTab(PawnUIValuesTabPage)
 					</OnClick>
 				</Scripts>
 			</Button>
-			<Button name="$parentTab3" inherits="CharacterFrameTabButtonTemplate" id="3" text="PawnUIFrame_OptionsTab_Text">
+			<Button name="$parentTab3" inherits="CharacterFrameTabButtonTemplate" id="3" text="PawnUIFrame_CompareTab_Text">
 				<Anchors><Anchor point="LEFT" relativeTo="$parentTab2" relativePoint="RIGHT"><Offset><AbsDimension x="-16" y="0" /></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnClick>
 						PlaySound("igCharacterInfoTab")
-						PawnUISwitchToTab(3)
+						PawnUISwitchToTab(PawnUICompareTabPage)
 					</OnClick>
 				</Scripts>
 			</Button>
-			<Button name="$parentTab4" inherits="CharacterFrameTabButtonTemplate" id="4" text="PawnUIFrame_AboutTab_Text">
+			<Button name="$parentTab4" inherits="CharacterFrameTabButtonTemplate" id="4" text="PawnUIFrame_GemsTab_Text">
+				<Anchors><Anchor point="LEFT" relativeTo="$parentTab3" relativePoint="RIGHT"><Offset><AbsDimension x="-16" y="0" /></Offset></Anchor></Anchors>
+				<Scripts>
+					<OnClick>
+						PlaySound("igCharacterInfoTab")
+						PawnUISwitchToTab(PawnUIGemsTabPage)
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="$parentTab5" inherits="CharacterFrameTabButtonTemplate" id="5" text="PawnUIFrame_OptionsTab_Text">
+				<Anchors><Anchor point="LEFT" relativeTo="$parentTab4" relativePoint="RIGHT"><Offset><AbsDimension x="-16" y="0" /></Offset></Anchor></Anchors>
+				<Scripts>
+					<OnClick>
+						PlaySound("igCharacterInfoTab")
+						PawnUISwitchToTab(PawnUIOptionsTabPage)
+					</OnClick>
+				</Scripts>
+			</Button>
+			<Button name="$parentTab6" inherits="CharacterFrameTabButtonTemplate" id="6" text="PawnUIFrame_AboutTab_Text">
 				<Anchors><Anchor point="RIGHT" relativePoint="BOTTOMRIGHT"><Offset><AbsDimension x="-6" y="-10" /></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnClick>
 						PlaySound("igCharacterInfoTab")
-						PawnUISwitchToTab(4)
+						PawnUISwitchToTab(PawnUIAboutTabPage)
 					</OnClick>
 				</Scripts>
 			</Button>
-			<Button name="$parentTab5" inherits="CharacterFrameTabButtonTemplate" id="5" text="PawnUIFrame_HelpTab_Text">
-				<Anchors><Anchor point="RIGHT" relativeTo="$parentTab4" relativePoint="LEFT"><Offset><AbsDimension x="16" y="0" /></Offset></Anchor></Anchors>
+			<Button name="$parentTab7" inherits="CharacterFrameTabButtonTemplate" id="7" text="PawnUIFrame_HelpTab_Text">
+				<Anchors><Anchor point="RIGHT" relativeTo="$parentTab6" relativePoint="LEFT"><Offset><AbsDimension x="16" y="0" /></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnClick>
 						PlaySound("igCharacterInfoTab")
-						PawnUISwitchToTab(5)
+						PawnUISwitchToTab(PawnUIHelpTabPage)
 					</OnClick>
 				</Scripts>
 			</Button>
@@ -1036,8 +1338,9 @@
 			<OnLoad>
 				this:RegisterEvent("VARIABLES_LOADED")
 				this:RegisterEvent("ADDON_LOADED")
-				this:RegisterEvent("UPDATE_BINDINGS")
-				PawnUITabList = { PawnUIScalesTabPage, PawnUICompareTabPage, PawnUIOptionsTabPage, PawnUIAboutTabPage, PawnUIHelpTabPage }
+				this:RegisterEvent("PLAYER_ENTERING_WORLD")
+				this:RegisterEvent("PLAYER_LOGOUT")
+				PawnUITabList = { PawnUIScalesTabPage, PawnUIValuesTabPage, PawnUICompareTabPage, PawnUIGemsTabPage, PawnUIOptionsTabPage, PawnUIAboutTabPage, PawnUIHelpTabPage }
 				PanelTemplates_SetNumTabs(PawnUIFrame, #PawnUITabList)
 			</OnLoad>
 			<OnEvent>
@@ -1045,19 +1348,14 @@
 			</OnEvent>
 			<OnShow>
 				PlaySound("igCharacterInfoOpen")
-				if not PawnUIOpenedYet then
-					PawnUIOpenedYet = true
-					if not PawnOptions.ShownGettingStarted then
-						PawnOptions.ShownGettingStarted = true
-						PawnUISwitchToTab(5)
-					else
-						PawnUISwitchToTab(1)
-					end
-				end
+				PawnUI_EnsureLoaded()
 			</OnShow>
 			<OnHide>
 				PlaySound("igCharacterInfoClose")
 			</OnHide>
+			<OnMouseDown>this:StartMoving()</OnMouseDown>
+			<OnMouseUp>this:StopMovingOrSizing()</OnMouseUp>
+			<OnDragStop>this:StopMovingOrSizing()</OnDragStop>
 		</Scripts>
 		
 	</Frame>

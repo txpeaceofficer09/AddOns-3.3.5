@@ -1794,3 +1794,5 @@ end
 	AtlasLoot_TableNames["EmptyTable"] = { AL["Select a Loot Table..."], "Menu" };
 	AtlasLoot_TableNames["EmptyInstance"] = { "AtlasLoot", "AtlasLootFallback" };
 	AtlasLoot_TableNames["AtlasLootFallback"] = { "AtlasLoot", "AtlasLootFallback" };
+
+	AtlasLoot_TableNames["STORMFORGELEGENDARIES"] = { "StormForge Legendaries", "AtlasLootWotLK" };
