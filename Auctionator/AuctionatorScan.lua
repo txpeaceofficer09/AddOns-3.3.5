@@ -1,4 +1,3 @@
-
 local addonName, addonTable = ...; 
 local zc = addonTable.zc;
 
@@ -136,6 +135,7 @@ end
 function AtrScan:Init (itemName)
 	self.itemName			= itemName;
 	self.itemLink			= nil;
+	self.texture            = nil;
 	self.scanData			= {};
 	self.sortedData			= {};
 	self.whenScanned		= 0;
@@ -147,7 +147,7 @@ function AtrScan:Init (itemName)
 	self.yourWorstPrice		= nil;
 	self.numYourSingletons	= 0;
 	self.itemTextColor 		= { 1.0, 1.0, 1.0 };
-	self.searchWasExact		= false;
+	self.searchText			= nil;
 	
 	self:UpdateItemLink (Atr_GetItemLink (itemName));
 end
@@ -227,9 +227,9 @@ end
 
 function AtrSearch:Start ()
 
-	if (self.searchText == "") then
-		return;
-	end
+    if (self.searchText == "") then
+        return;
+    end
 	
 	if (Atr_IsCompoundSearch (self.searchText)) then
 			
@@ -245,16 +245,20 @@ function AtrSearch:Start ()
 	end
 	
 	self.processing_state = KM_SETTINGSORT;
+    -- mark when this search started so callers can enforce a hard timeout
+    self.started_when = (gAtr_ptime or 0);
 	
 	SortAuctionClearSort ("list");
 
 	BrowseName:SetText (self.searchText);		-- not necessary but nice when user switches to Browse tab
 
-	self.current_page		= 0;
-	self.processing_state	= KM_PREQUERY;
+    self.current_page		= 0;
+    self.processing_state	= KM_PREQUERY;
+    -- entering PREQUERY so a watchdog can measure stall time per stage
+    self.prequery_when     = (gAtr_ptime or 0);
 
-	self:Continue();
-	
+    self:Continue();
+    
 end
 
 -----------------------------------------
@@ -281,6 +285,8 @@ function AtrSearch:CheckForDuplicatePage ()
 		self.current_page	= self.current_page - 1;   -- requery the page
 		
 		self.processing_state = KM_PREQUERY;
+        -- entering PREQUERY again after detecting duplicate page
+        self.prequery_when   = (gAtr_ptime or 0);
 	end
 		
 	return isDup;
@@ -300,7 +306,7 @@ function AtrSearch:AnalyzeResultsPage()
 
 	local numBatchAuctions, totalAuctions = GetNumAuctionItems("list");
 
-	if (self.current_page == 1 and totalAuctions > 2000) then -- give Blizz servers a break
+	if (self.current_page == 1 and totalAuctions > 3000) then -- give Blizz servers a break
 		Atr_Error_Display (ZT("Too many results\n\nPlease narrow your search"));
 		return true;  -- done
 	end
@@ -331,8 +337,16 @@ function AtrSearch:AnalyzeResultsPage()
 
 				if (self.items[name] == nil) then
 					self.items[name] = Atr_FindScanAndInit (name);
+                    self.items[name].texture = texture
 				end
-				
+                if self.items[name].texture and texture ~= self.items[name].texture then
+                    name = name .. " "
+                    if (self.items[name] == nil) then
+                        self.items[name] = Atr_FindScanAndInit (name);
+                        self.items[name].texture = texture
+                    end
+                end
+                
 				local curpage = (tonumber(self.current_page)-1);
 
 				local scn = self.items[name];
@@ -354,8 +368,10 @@ function AtrSearch:AnalyzeResultsPage()
 	local done = (numBatchAuctions < 50);
 
 	if (not done) then
-		self.processing_state = KM_PREQUERY;
-	end
+        self.processing_state = KM_PREQUERY;
+        -- entering PREQUERY to request next page
+        self.prequery_when   = (gAtr_ptime or 0);
+    end
 	
 	return done;
 end
@@ -379,9 +395,11 @@ function AtrScan:AddScanItem (name, stackSize, buyoutPrice, owner, numAuctions, 
 
 		tinsert (self.scanData, sd);
 		
-		local itemPrice = math.floor (buyoutPrice / stackSize);
+		if (buyoutPrice) then
+			local itemPrice = math.floor (buyoutPrice / stackSize);
 
-		Atr_AddToLowPrices (self.lowprices, itemPrice);
+			Atr_AddToLowPrices (self.lowprices, itemPrice);
+		end
 	end
 
 end
@@ -534,7 +552,9 @@ function Atr_ParseCompoundSearch (searchString)
 		end
 		
 		if (not handled and itemClass == 0) then
+
 			itemClass = Atr_ItemType2AuctionClass (s);
+
 			if (itemClass > 0) then
 				prevWasItemClass = true;
 				handled = true;
@@ -556,7 +576,7 @@ function AtrSearch:Continue()
 
 	if (CanSendAuctionQuery()) then
 
-		self.processing_state = KM_IN_QUERY;
+		self.processing_state = KM_INQUERY;
 
 		local queryString = self.searchText;
 
@@ -635,7 +655,7 @@ function AtrSearch:Finish()
 		x = x + 1;
 		
 		scn.whenScanned		= finishTime;
-		scn.searchWasExact	= wasExactSearch;
+		scn.searchText		= self.searchText;
 
 		scn:CondenseAndSort ();
 
@@ -991,8 +1011,21 @@ ATR_FS_STARTED		= 1;
 ATR_FS_ANALYZING	= 2;
 ATR_FS_CLEANING_UP	= 3;
 
-gAtr_FullScanState = ATR_FS_NULL;
+ATR_FSS_NULL		= 0;
 
+gAtr_FullScanState		= ATR_FS_NULL;
+gAtr_FullScanSubState	= ATR_FSS_NULL;
+
+local gAtr_FullScanIsSlowScan;
+
+local gAtr_SlowScanClass = nil;
+local gAtr_SlowScanSubClass = nil;
+
+local gAtr_FullScanStart;
+local gAtr_FullScanDur;
+-- Track timeout state and reason for stopping early
+gAtr_FullScanTimedOut = false;
+gAtr_FullScanStopReason = nil;
 
 -----------------------------------------
 
@@ -1008,6 +1041,7 @@ function Atr_GetDBsize()
 	return n;
 end
 
+
 -----------------------------------------
 
 local gNumAdded, gNumUpdated;
@@ -1016,22 +1050,35 @@ local gNumAdded, gNumUpdated;
 
 function Atr_FullScanStart()
 
+	local gAtr_FullScanIsSlowScan = false;
+--	local gAtr_FullScanIsSlowScan = Atr_FullScan_Slow:GetChecked();
+--	zc.md (gAtr_FullScanIsSlowScan);
+	
 	local canQuery,canQueryAll = CanSendAuctionQuery();
 	
-	if (canQueryAll) then
+	if (canQueryAll or gAtr_FullScanIsSlowScan) then
 	
 		Atr_FullScanStatus:SetText (ZT("Scanning").."...");
 		Atr_FullScanStartButton:Disable();
 		Atr_FullScanDone:Disable();
-	
-		gAtr_FullScanState = ATR_FS_STARTED;
-
+		
+		gAtr_FullScanStart = time();
+		gAtr_FullScanDur   = nil;
+		gAtr_FullScanTimedOut = false;
+		gAtr_FullScanStopReason = nil;
+		
 		SortAuctionClearSort ("list");
 
 		gNumAdded = 0;
 		gNumUpdated = 0;
 
-		QueryAuctionItems ("", nil, nil, 0, 0, 0, 0, 0, 0, true);
+		if (gAtr_FullScanIsSlowScan) then
+			gAtr_SlowScanClass = nil;
+			gAtr_SlowScanSubClass = nil;
+		else
+			QueryAuctionItems ("", nil, nil, 0, 0, 0, 0, 0, 0, true);
+		end
+        gAtr_FullScanState = ATR_FS_STARTED;
 	end
 
 end
@@ -1079,7 +1126,11 @@ local gScanDetails = {}
 
 function Atr_FullScanMoreDetails ()
 
+	local minutes = math.floor (gAtr_FullScanDur/60);
+	local seconds = gAtr_FullScanDur - (minutes * 60);
+
 	zc.msg (" ");
+	zc.msg_atr (string.format ("Scan complete (%d:%02d)", minutes, seconds));
 	zc.msg_atr (ZT("Auctions scanned")..": |cffffffff", gScanDetails.numBatchAuctions, " |r("..gScanDetails.totalItems, "items)");
 	zc.msg_atr ("|cffa335ee   "..ZT("Epic items")..": |r",		gScanDetails.numEachQual[5]);
 	zc.msg_atr ("|cff0070dd   "..ZT("Rare items")..": |r",		gScanDetails.numEachQual[4]);
@@ -1107,7 +1158,6 @@ function Atr_FullScanAnalyze()
 
 	Atr_FullScanStatus:SetText (ZT("Processing"));
 	
-
 	local numBatchAuctions, totalAuctions = GetNumAuctionItems("list");
 
 	zc.md ("FULL SCAN:"..numBatchAuctions.." out of  "..totalAuctions)
@@ -1122,10 +1172,14 @@ function Atr_FullScanAnalyze()
 		for x = 1, numBatchAuctions do
 
 			local name, texture, count, quality, canUse, level, minBid, minIncrement, buyoutPrice = GetAuctionItemInfo("list", x);
-
-			qualities[name] = quality;
 			
 			if (name ~= nil and buyoutPrice ~= nil) then
+            
+                if gAtr_MeanDB[name] == nil then
+                    gAtr_MeanDB[name] = {};
+                end
+            	
+                qualities[name] = quality;
 			
 				local itemPrice = math.floor (buyoutPrice / count);
 			
@@ -1174,9 +1228,19 @@ function Atr_FullScanAnalyze()
 				end
 
 				gAtr_ScanDB[name] = newprice;
+                if #gAtr_MeanDB[name] < 15 then
+                    table.insert(gAtr_MeanDB[name], newprice)
+                else
+                    table.remove(gAtr_MeanDB[name], math.random(1, #gAtr_MeanDB[name]))
+                    table.insert(gAtr_MeanDB[name], newprice)
+                end
 			end
 		end
 	end
+    
+    for name in pairs(gAtr_MeanDB) do
+        table.sort(gAtr_MeanDB[name])
+    end
 
 	gScanDetails.numBatchAuctions		= numBatchAuctions;
 	gScanDetails.totalItems				= totalItems;
@@ -1199,11 +1263,17 @@ function Atr_FullScanAnalyze()
 
 	Atr_FullScanMoreDetails();
 
-	Atr_FullScanStatus:SetText (ZT("Cleaning up"));
-
-	Atr_FullScanStartButton:Enable();
+	if (gAtr_FullScanTimedOut and gAtr_FullScanStopReason) then
+		Atr_FullScanStatus:SetText (gAtr_FullScanStopReason);
+	else
+		Atr_FullScanStatus:SetText (ZT("Cleaning up"));
+	end
+	
 	Atr_FullScanDone:Enable();
-	Atr_FullScanStatus:SetText ("");
+	-- Keep the stop reason visible; only clear status if not timed out
+	if (not gAtr_FullScanTimedOut) then
+		Atr_FullScanStatus:SetText ("");
+	end
 	
 	Atr_FSR_scanned_count:SetText	(numBatchAuctions);
 	Atr_FSR_added_count:SetText		(gNumAdded);
@@ -1219,18 +1289,19 @@ function Atr_FullScanAnalyze()
 	
 	Atr_UpdateFullScanFrame ();
 
+	-- Ensure Auctionator Buy search controls are enabled after a full scan completes
+	if (Atr_Search_Button) then Atr_Search_Button:Enable(); end
+	if (Atr_Adv_Search_Button) then Atr_Adv_Search_Button:Enable(); end
+
+	-- If the Buy pane is active, refresh its UI so the list and buttons reflect current state
+	if (Atr_IsTabSelected and (Atr_IsTabSelected(BUY_TAB) or (gCurrentPane == gShopPane))) then
+		if (Atr_Shop_UpdateUI) then Atr_Shop_UpdateUI(); end
+	end
+
 	Atr_ClearBrowseListings();
 	
 	lowprices = {};
 	collectgarbage ("collect");
-end
-
------------------------------------------
-
-function auctionator_AuctionFrameBrowse_Update ()
-
-	return auctionator_orig_AuctionFrameBrowse_Update ();
-
 end
 
 -----------------------------------------
@@ -1304,40 +1375,55 @@ end
 
 -----------------------------------------
 
-function Atr_FullScanFrameIdle()
+function Atr_FullScan_GetDurString()
 
-	if (gAtr_FullScanState == ATR_FS_CLEANING_UP) then
-	
-		Atr_FullScanStatus:SetText ("Cleaning up");
-		
-		if (GetNumAuctionItems("list") < 100) then
-		
-			Atr_FullScanStatus:SetText (ZT("Scan complete"));
-			PlaySound("AuctionWindowClose");
-			
-			gAtr_FullScanState = ATR_FS_NULL;
-		end
-	
-	end
-	
-	if (gAtr_FullScanState == ATR_FS_STARTED) then
+	local minutes = math.floor (gAtr_FullScanDur/60);
+	local seconds = gAtr_FullScanDur - (minutes * 60);
 
-		local btext = Atr_FullScanStatus:GetText ();
-		
-		if (btext) then
-			if (string.len (btext) > 25) then
-				Atr_FullScanStatus:SetText (ZT("Scanning")..".");
-			else
-				Atr_FullScanStatus:SetText (btext..".");
-			end
-		end
-	end
-	
+	return string.format ("%d:%02d", minutes, seconds);
 end
 
+-----------------------------------------
+
+function Atr_FullScanFrameIdle()
+
+    if (gAtr_FullScanState == ATR_FS_STARTED) then
+
+        if (gAtr_FullScanIsSlowScan) then
+            
+        end
+
+        local btext = Atr_FullScanStatus:GetText ();
+        
+        if (btext) then
+            gAtr_FullScanDur = time()- gAtr_FullScanStart;
+            Atr_FullScanStatus:SetText (string.format ("Scanning (%s)", Atr_FullScan_GetDurString()));
+        end
+
+        -- Hard stop after 20 seconds to avoid hanging on unresponsive servers
+        if (not gAtr_FullScanTimedOut and (time() - gAtr_FullScanStart) > 20) then
+            gAtr_FullScanTimedOut = true;
+            gAtr_FullScanStopReason = "Stopped after 20s: server did not return all auctions";
+            -- Analyze whatever we have and proceed to cleanup/results
+            Atr_FullScanAnalyze();
+            return;
+        end
+    end
 
 
-
-
-
-
+    if (gAtr_FullScanState == ATR_FS_CLEANING_UP) then
+    
+        Atr_FullScanStatus:SetText ("Cleaning up");
+        
+        if (GetNumAuctionItems("list") < 100) then
+            if (gAtr_FullScanTimedOut and gAtr_FullScanStopReason) then
+                Atr_FullScanStatus:SetText (gAtr_FullScanStopReason .. " — " .. string.format ("Scan complete (%s)", Atr_FullScan_GetDurString()));
+            else
+                Atr_FullScanStatus:SetText (string.format ("Scan complete (%s)", Atr_FullScan_GetDurString()));
+            end
+            PlaySound("AuctionWindowClose");
+            gAtr_FullScanState = ATR_FS_NULL;
+        end
+    end
+    
+end

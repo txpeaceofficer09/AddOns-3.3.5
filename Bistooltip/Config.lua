@@ -13,7 +13,6 @@ local LDBIcon = LDB and LibStub("LibDBIcon-1.0", true)
 
 local icon_loaded = false
 local icon_name = "BisTooltipIcon"
-local config_shown = false
 
 -- ============================================================
 -- Data Sources
@@ -41,8 +40,9 @@ local db_defaults = {
         -- Filtering
         filter_specs = {},
         highlight_spec = {},
-        filter_class_names = false,
-        
+        filter_class_names = true,
+        show_item_source = true,
+
         -- Data source
         data_source = "wowtbc",
         
@@ -50,6 +50,8 @@ local db_defaults = {
         minimap_icon = true,
         tooltip_with_ctrl = false,
         bis_checklist = false,
+        gem_detailed = false,
+        enchant_detailed = false,
         
         -- Version for migrations
         version = nil,
@@ -109,6 +111,19 @@ local configTable = {
                 return BistooltipAddon.db.char.filter_class_names
             end
         },
+        show_item_source = {
+            name = "Show item source in tooltips",
+            order = 2.5,
+            desc = "Shows where items drop from (boss, zone, emblems, etc.)",
+            type = "toggle",
+            width = "full",
+            set = function(info, val)
+                BistooltipAddon.db.char.show_item_source = val
+            end,
+            get = function(info)
+                return BistooltipAddon.db.char.show_item_source
+            end
+        },
         tooltip_with_ctrl = {
             name = "Show BIS info only with Ctrl",
             order = 3,
@@ -120,6 +135,38 @@ local configTable = {
             end,
             get = function(info)
                 return BistooltipAddon.db.char.tooltip_with_ctrl
+            end
+        },
+        gem_detailed = {
+            name = "Show gem stats in BIS list",
+            order = 4,
+            desc = "Display shortened stat bonuses below gem icons (e.g., +20 STR, +16 Crit)",
+            type = "toggle",
+            width = "full",
+            set = function(info, val)
+                BistooltipAddon.db.char.gem_detailed = val
+                if BistooltipAddon.reloadData then
+                    BistooltipAddon:reloadData()
+                end
+            end,
+            get = function(info)
+                return BistooltipAddon.db.char.gem_detailed
+            end
+        },
+        enchant_detailed = {
+            name = "Show enchant names in BIS list",
+            order = 5,
+            desc = "Display enchant name below item icon (e.g., Gloves: Crusher)",
+            type = "toggle",
+            width = "full",
+            set = function(info, val)
+                BistooltipAddon.db.char.enchant_detailed = val
+                if BistooltipAddon.reloadData then
+                    BistooltipAddon:reloadData()
+                end
+            end,
+            get = function(info)
+                return BistooltipAddon.db.char.enchant_detailed
             end
         },
         header_data = {
@@ -377,15 +424,6 @@ local function EnableSpec(spec_name)
         return
     end
 
-    -- Build phases string
-    Bistooltip_phases_string = ""
-    for i, phase in ipairs(Bistooltip_phases) do
-        if i ~= 1 then
-            Bistooltip_phases_string = Bistooltip_phases_string .. "/"
-        end
-        Bistooltip_phases_string = Bistooltip_phases_string .. phase
-    end
-
     BuildFilterSpecOptions()
 end
 
@@ -394,12 +432,27 @@ end
 -- ============================================================
 
 function BistooltipAddon:openConfigDialog()
-    if config_shown then
-        InterfaceOptionsFrame_Show()
-    else
-        InterfaceOptionsFrame_OpenToCategory(self.AceAddonName)
+    -- Hide main addon frame while options are open
+    local mainFrame = _G["BistooltipMainFrame"]
+    local shadowFrame = _G["BistooltipMainShadow"]
+    if mainFrame then mainFrame:Hide() end
+    if shadowFrame then shadowFrame:Hide() end
+
+    -- Always open to addon category (fixes race condition when window closed via ESC)
+    InterfaceOptionsFrame_OpenToCategory(self.AceAddonName)
+    -- Call twice to ensure proper category selection (WoW bug workaround)
+    InterfaceOptionsFrame_OpenToCategory(self.AceAddonName)
+
+    -- Hook to show main frame when options are closed
+    if InterfaceOptionsFrame and not InterfaceOptionsFrame._bistooltipHooked then
+        InterfaceOptionsFrame:HookScript("OnHide", function()
+            local mf = _G["BistooltipMainFrame"]
+            local sf = _G["BistooltipMainShadow"]
+            if mf then mf:Show() end
+            if sf then sf:Show() end
+        end)
+        InterfaceOptionsFrame._bistooltipHooked = true
     end
-    config_shown = not config_shown
 end
 
 -- ============================================================

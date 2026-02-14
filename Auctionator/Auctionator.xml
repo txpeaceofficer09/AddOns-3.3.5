@@ -13,7 +13,7 @@
 			Atr_OnUpdate(self, elapsed);
 		</OnUpdate>
          <OnEvent> 
-            Atr_EventHandler();
+            Atr_EventHandler(self, event, ...);
          </OnEvent> 
       </Scripts> 
    </Frame> 
@@ -32,7 +32,7 @@
 
 		<Scripts>
 			<OnLoad>
-				this:SetBackdropColor(0.3, 0.3, 0.7);
+				self:SetBackdropColor(0.3, 0.3, 0.7);
 			</OnLoad>
 			<OnShow>
 				if (self.withMask) then
@@ -79,7 +79,7 @@
 
 		<Scripts>
 			<OnLoad>
-				this:SetBackdropColor(0.3, 0.3, 0.7);
+				self:SetBackdropColor(0.3, 0.3, 0.7);
 			</OnLoad>
 			<OnShow>
 				Atr_Mask:Show();
@@ -174,7 +174,7 @@
 
 	<Frame name="Atr_Mask" toplevel="true" parent="UIParent" enableMouse="true" hidden="true">
 		<Size><AbsDimension x="820" y="450" /></Size>		
-		<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="12" y="-115"/></Offset></Anchor></Anchors>
+		<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="26" y="-129"/></Offset></Anchor></Anchors>
 	
 		<Backdrop bgFile="Interface\Tooltips\UI-Tooltip-Background" tile="true">
 			<TileSize><AbsValue val="16"/></TileSize>
@@ -182,7 +182,7 @@
 
 		<Scripts>
 			<OnLoad>
-				this:SetBackdropColor(0.2, 0.2, 0.2);
+				self:SetBackdropColor(0.2, 0.2, 0.2);
 			</OnLoad>
 		</Scripts>
 	</Frame>
@@ -190,6 +190,12 @@
 
 	<Button name="AuctionatorEntryTemplate" virtual="true" hidden="true">
 		<Size><AbsDimension x="584" y="16" /></Size>		
+		<Scripts>
+			<OnLoad>self:EnableMouseWheel(true);</OnLoad>
+			<OnMouseWheel>
+				FauxScrollFrame_OnMouseWheel(AuctionatorScrollFrame, delta, 16, Atr_RedisplayAuctions);
+			</OnMouseWheel>
+		</Scripts>
 		<Frames>
 			<Frame>
 				<Size><AbsDimension x="120" y="16" /></Size>
@@ -245,7 +251,7 @@
 		</HighlightTexture>
 		<Scripts>
 			<OnClick>
-				Atr_EntryOnClick();
+				Atr_EntryOnClick(self);
 			</OnClick>
 			<OnEnter>Atr_ShowLineTooltip(self)</OnEnter>
 			<OnLeave>Atr_HideLineTooltip()</OnLeave>
@@ -272,7 +278,7 @@
 		</HighlightTexture>
 		<Scripts>
 			<OnClick>
-				Atr_HEntryOnClick();
+				Atr_HEntryOnClick(self);
 			</OnClick>
 		</Scripts>
 	</Button>
@@ -490,6 +496,34 @@
 					</Layer>
 				</Layers>
 			</Frame>
+
+
+
+
+			<Button name="Atr_SellBrowser_Toggle" inherits="UIPanelButtonTemplate" text="Inventory" hidden="true">
+				<Size><AbsDimension x="80" y="18"/></Size>
+				<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="-195" y="-49"/></Offset></Anchor></Anchors>
+				<Scripts>
+					<OnClick>Atr_SB_Toggle();</OnClick>
+				</Scripts>
+				<NormalFont style="GameFontNormalSmall"/>
+				<HighlightFont style="GameFontHighlightSmall"/>
+				<DisabledFont style="GameFontDisableSmall"/>
+			</Button>
+
+			<ScrollFrame name="Atr_SellBrowser" inherits="UIPanelScrollFrameTemplate" hidden="true">
+				<Size><AbsDimension x="170" y="335"/></Size>
+				<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="-193" y="-75"/></Offset></Anchor></Anchors>
+				<Backdrop bgFile="Interface\CharacterFrame\UI-Party-Background" tile="true">
+					<BackgroundInsets><AbsInset left="0" right="-24" top="0" bottom="0"/></BackgroundInsets>
+					<TileSize><AbsValue val="256"/></TileSize>
+				</Backdrop>
+				<ScrollChild>
+					<Frame name="Atr_SB_Content">
+						<Size><AbsDimension x="170" y="10"/></Size>
+					</Frame>
+				</ScrollChild>
+			</ScrollFrame>
 
 			<Frame name="Atr_SellControls" hidden="true">
 				<Size><AbsDimension x="170" y="335"/></Size>
@@ -771,7 +805,7 @@
 					<Frame name="Atr_RecommendPerStack_Price" inherits="SmallMoneyFrameTemplate">
 						<Size><AbsDimension x="120" y="16" /></Size>
 						<Anchors><Anchor point="RIGHT"><Offset><AbsDimension x="0" y="0"/></Offset></Anchor></Anchors>
-						<Scripts><OnLoad>AuctionatorMoneyFrame_OnLoad();</OnLoad></Scripts>
+						<Scripts><OnLoad>AuctionatorMoneyFrame_OnLoad(self);</OnLoad></Scripts>
 					</Frame>
 				</Frames>
 			</Frame>
@@ -787,7 +821,7 @@
 					<Frame name="Atr_RecommendPerItem_Price" inherits="SmallMoneyFrameTemplate">
 						<Size><AbsDimension x="120" y="16" /></Size>
 						<Anchors><Anchor point="RIGHT"><Offset><AbsDimension x="0" y="0"/></Offset></Anchor></Anchors>
-						<Scripts><OnLoad>AuctionatorMoneyFrame_OnLoad();</OnLoad></Scripts>
+						<Scripts><OnLoad>AuctionatorMoneyFrame_OnLoad(self);</OnLoad></Scripts>
 					</Frame>
 				</Frames>
 			</Frame>
@@ -825,10 +859,14 @@
 
 
 			<ScrollFrame name="AuctionatorScrollFrame" inherits="FauxScrollFrameTemplate">
-				<Size><AbsDimension x="588" y="196"/></Size>
+				<Size><AbsDimension x="588" y="50"/></Size>
 				<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="0" y="-213"/></Offset></Anchor></Anchors>
 
 				<Scripts>
+					<OnLoad>self:EnableMouseWheel(true);</OnLoad>
+					<OnMouseWheel>
+						FauxScrollFrame_OnMouseWheel(self, delta, 16, Atr_RedisplayAuctions);
+					</OnMouseWheel>
 					<OnVerticalScroll>
 						FauxScrollFrame_OnVerticalScroll(self, offset, 16, Atr_RedisplayAuctions); 
 					</OnVerticalScroll>
@@ -1006,12 +1044,18 @@
 		<Layers>
 			<Layer level="BACKGROUND">
 				<FontString name="Atr_Buy_Confirm_ItemName" inherits="GameFontNormal">
-					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-34"/></Offset></Anchor></Anchors>
+					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="40" y="-35"/></Offset></Anchor></Anchors>
 				</FontString>
 			</Layer>
 		</Layers>
 
 		<Frames>
+
+			<Frame name="Atr_Buy_Confirm_TotalPrice" inherits="SmallMoneyFrameTemplate">
+				<Size><AbsDimension x="125" y="16" /></Size>
+				<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_Buy_Confirm_ItemName"><Offset><AbsDimension x="20" y="-25"/></Offset></Anchor></Anchors>
+				<Scripts><OnLoad>AuctionatorMoneyFrame_OnLoad(self);</OnLoad></Scripts>
+			</Frame>
 
 			<Frame name="Atr_Buy_Part1">
 				<Anchors>
@@ -1036,11 +1080,6 @@
 				</Layers>
 
 				<Frames>
-					<Frame name="Atr_Buy_Confirm_TotalPrice" inherits="SmallMoneyFrameTemplate">
-						<Size><AbsDimension x="125" y="16" /></Size>
-						<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_Buy_Confirm_Text1"><Offset><AbsDimension x="160" y="2"/></Offset></Anchor></Anchors>
-						<Scripts><OnLoad>AuctionatorMoneyFrame_OnLoad();</OnLoad></Scripts>
-					</Frame>
 
 
 					<EditBox name="Atr_Buy_Confirm_Numstacks" autoFocus="false" numeric="true" inherits="InputBoxTemplate">
@@ -1063,15 +1102,18 @@
 				
 				<Layers>
 					<Layer level="BACKGROUND">
+						<FontString name="Atr_Buy_NumAvail_Text" inherits="GameFontNormal">
+							<Anchors><Anchor point="TOPRIGHT"><Offset><AbsDimension x="-30" y="-90"/></Offset></Anchor></Anchors>
+						</FontString>
 						<FontString name="Atr_Buy_Continue_Text" inherits="GameFontNormal">
-							<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="60" y="-79"/></Offset></Anchor></Anchors>
+							<Anchors><Anchor point="TOPRIGHT"><Offset><AbsDimension x="-30" y="-110"/></Offset></Anchor></Anchors>
 						</FontString>
 					</Layer>
 				</Layers>
 			</Frame>
 			
-			<Button name="Atr_Buy_Confirm_CancelBut" inherits="UIPanelButtonTemplate" text="CANCEL">
-				<Size><AbsDimension x="80" y="22"/></Size>
+			<Button name="Atr_Buy_Confirm_CancelBut" inherits="UIPanelButtonTemplate" text="Cancel">
+				<Size><AbsDimension x="120" y="22"/></Size>
 				<Anchors><Anchor point="BOTTOMRIGHT"><Offset><AbsDimension x="-20" y="25"/></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnClick>
@@ -1081,7 +1123,7 @@
 			</Button>
 
 			<Button name="Atr_Buy_Confirm_OKBut" inherits="UIPanelButtonTemplate" text="Buy">
-				<Size><AbsDimension x="80" y="22"/></Size>
+				<Size><AbsDimension x="120" y="22"/></Size>
 				<Anchors><Anchor point="RIGHT" relativeTo="Atr_Buy_Confirm_CancelBut" relativePoint="LEFT"><Offset><AbsDimension x="-10"/></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnClick>
@@ -1096,20 +1138,20 @@
    <!-- Check Active screen --> 
 
 	<Frame name="Atr_CheckActives_Frame" inherits="AuctionatorDialog" toplevel="true" parent="UIParent" frameStrata="FULLSCREEN_DIALOG" enableMouse="true" hidden="true">
-		<Size><AbsDimension x="320" y="190" /></Size>		
-		<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="70" y="-300"/></Offset></Anchor></Anchors>
+		<Size><AbsDimension x="350" y="190" /></Size>		
+		<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="190" y="-220"/></Offset></Anchor></Anchors>
 
 		<Layers>
 			<Layer level="BACKGROUND">
-				<FontString inherits="GameFontNormal" text="Automatically cancel all of your auctions|n|nthat are not the lowest priced?">
-					<Size><AbsDimension x="310" y="50"/></Size>
+				<FontString name="Atr_CheckActives_Text" inherits="GameFontNormal" text="">
+					<Size><AbsDimension x="320" y="50"/></Size>
 					<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="5" y="-34"/></Offset></Anchor></Anchors>
 				</FontString>
 			</Layer>
 		</Layers>
 
 		<Frames>
-			<Button inherits="UIPanelButtonTemplate" text="Yes, cancel them">
+			<Button name="Atr_CheckActives_Yes_Button" inherits="UIPanelButtonTemplate" text="Yes, let's get started">
 				<Size><AbsDimension x="210" y="22"/></Size>
 				<Anchors><Anchor point="BOTTOM"><Offset><AbsDimension y="65"/></Offset></Anchor></Anchors>
 				<Scripts>
@@ -1117,7 +1159,7 @@
 				</Scripts>
 			</Button>
 
-			<Button inherits="UIPanelButtonTemplate" text="No, leave them">
+			<Button name="Atr_CheckActives_No_Button" inherits="UIPanelButtonTemplate" text="No, leave them">
 				<Size><AbsDimension x="210" y="22"/></Size>
 				<Anchors><Anchor point="BOTTOM"><Offset><AbsDimension y="30"/></Offset></Anchor></Anchors>
 				<Scripts>
@@ -1198,7 +1240,7 @@
 					<Anchors><Anchor point="TOPLEFT"><Offset x="150" y="-105"/></Anchor></Anchors>
 				</FontString>
 				<FontString name="Atr_FullScanStatus" inherits="GameFontNormal" text="">
-					<Anchors><Anchor point="TOPLEFT"><Offset x="27" y="-140"/></Anchor></Anchors>
+					<Anchors><Anchor point="TOPLEFT"><Offset x="27" y="-130"/></Anchor></Anchors>
 				</FontString>
 			</Layer>
 
@@ -1208,7 +1250,7 @@
 			
 			<Button name="Atr_FullScanDone" inherits="UIPanelButtonTemplate" text="DONE">
 				<Size><AbsDimension x="80" y="22"/>	</Size>
-				<Anchors><Anchor point="TOPRIGHT"><Offset><AbsDimension x="-30" y="-140"/></Offset></Anchor></Anchors>
+				<Anchors><Anchor point="TOPRIGHT"><Offset><AbsDimension x="-30" y="-155"/></Offset></Anchor></Anchors>
 				<Scripts>
 					<OnClick>
 						Atr_FullScanFrame:Hide();
@@ -1225,6 +1267,19 @@
 					</OnClick>
 				</Scripts>
 			</Button>
+
+<!--
+			<CheckButton name="Atr_FullScan_Slow" inherits="UICheckButtonTemplate">
+				<Anchors><Anchor point="TOPLEFT" relativeTo="Atr_FullScanStartButton" relativePoint="BOTTOMLEFT"><Offset><AbsDimension x="0" y="-5"/></Offset></Anchor></Anchors>
+				<Layers>
+					<Layer level="BACKGROUND">
+						<FontString inherits="GameFontHighlightSmall" text="Slow Scan">
+							<Anchors><Anchor point="LEFT" relativePoint="RIGHT" relativeTo="$parent"><Offset><AbsDimension x="4" y="1"/></Offset></Anchor></Anchors>
+						</FontString>
+					</Layer>
+				</Layers>
+			</CheckButton>
+-->
 
 			<SimpleHTML name="Atr_FullScanHTML">
 				<Size><AbsDimension x="405" y="300" /></Size>		

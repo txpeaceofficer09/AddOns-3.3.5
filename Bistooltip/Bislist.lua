@@ -59,6 +59,19 @@ local bisChecklistMode = false
 local emblemFilterMode = false  -- NEW: Filter to show only emblem sources
 local checklistSummaryLabel = nil
 local emblemSummaryLabel = nil  -- NEW: Shows emblem totals
+local collapsedBosses = {}  -- Track collapsed boss sections {["BossName_Zone"] = true}
+local blockedPhase = nil  -- NEW: Locked phase (when Block Phase is checked)
+local blockedPhaseIndex = nil  -- Index of locked phase
+local customizeMode = false  -- NEW: Enable slot priority customization
+local unlockedSlots = {}  -- NEW: Track which slots are unlocked for customization {["Slot_Name"] = true}
+local customPriorities = {}  -- NEW: Store custom item priorities {["Class_Spec_Phase_Slot"] = {item_ids...}}
+local originalSlotOrders = {}  -- Store ORIGINAL slot orders for reset {["Class_Spec_Phase_Slot"] = {item_ids...}}
+local currentFilteredData = {}  -- Store filtered slots for reference
+local selectedSwapItem = nil  -- Track selected item for swap: {slotName = "...", index = N}
+local selectionBorders = {}  -- Track all selection border textures for cleanup
+local customizeToggleRef = nil  -- Reference to customize checkbox
+local resetBtnRef = nil  -- Reference to reset button
+local savedScrollValue = 0  -- Save scroll position
 
 -- Emblem of Ascension item ID for icon
 local EMBLEM_OF_ASCENSION_ID = 131008
@@ -98,10 +111,21 @@ end
 
 local SPEC_TABLE_DEFAULT = Constants.SPEC_TABLE_DEFAULT
 local SPEC_TABLE_CHECKLIST = Constants.SPEC_TABLE_CHECKLIST
+local SPEC_TABLE_CUSTOMIZE = Constants.SPEC_TABLE_CUSTOMIZE
 
 local function ApplySpecTable()
     if not spec_frame then return end
-    spec_frame:SetUserData("table", bisChecklistMode and SPEC_TABLE_CHECKLIST or SPEC_TABLE_DEFAULT)
+    local tableLayout
+    if bisChecklistMode then
+        -- BIS checklist mode - customize is disabled here
+        tableLayout = SPEC_TABLE_CHECKLIST
+    elseif customizeMode then
+        -- Customize mode only works in standard mode
+        tableLayout = SPEC_TABLE_CUSTOMIZE
+    else
+        tableLayout = SPEC_TABLE_DEFAULT
+    end
+    spec_frame:SetUserData("table", tableLayout)
 end
 
 -- ============================================================
@@ -111,7 +135,28 @@ end
 local function GetOwnedRow(item_id)
     local t = _G.Bistooltip_char_equipment
     if not t then return nil end
-    return t[item_id]
+    
+    -- First try the direct ID
+    if t[item_id] then return t[item_id] end
+    
+    -- If the item_id is an Alliance ID (from normalization), we need to find the Horde ID
+    -- to check if a Horde player owns it
+    if Bistooltip_horde_to_ali then
+        -- Check if item_id is the Alliance version - find the Horde ID
+        for hordeId, aliId in pairs(Bistooltip_horde_to_ali) do
+            if aliId == item_id then
+                -- item_id is Alliance, check Horde version
+                if t[hordeId] then return t[hordeId] end
+                break
+            end
+        end
+        
+        -- Also check if item_id is Horde and try Alliance version
+        local aliId = Bistooltip_horde_to_ali[item_id]
+        if aliId and t[aliId] then return t[aliId] end
+    end
+    
+    return nil
 end
 
 local function OwnedCount(item_id)
@@ -523,7 +568,8 @@ local function BuildGemStatToken(item_id)
             return hardcoded
         end
     end
-    
+
+
     -- Also check global table directly
     if _G.Bistooltip_gem_stats then
         local key = string.lower(name)
@@ -607,6 +653,44 @@ local function BuildGemStatToken(item_id)
     GEM_TOKEN_CACHE[item_id] = token
     return token
 end
+
+
+local function BuildGemStatTokenTwoLines(item_id)
+    local token = BuildGemStatToken(item_id)
+    if not token or token == "" then return "" end
+
+    -- usuń prefix meta w UI
+    token = token:gsub("^META:%s*", "")
+
+    -- rozbij po "/"
+    local parts = {}
+    for part in token:gmatch("[^/]+") do
+        part = part:gsub("^%s+", ""):gsub("%s+$", "")
+        if part ~= "" then table.insert(parts, part) end
+    end
+
+    if #parts <= 1 then
+        return token
+    end
+
+    -- max 2 linie: resztę dopnij do 2. linii
+    local line1 = parts[1]
+    local line2 = parts[2]
+    for i = 3, #parts do
+        line2 = line2 .. " " .. parts[i]
+    end
+
+    -- kosmetyka
+    line1 = line1:gsub("%s+", " ")
+    line2 = line2:gsub("%s+", " ")
+
+    -- jeśli masz przypadki "STA" z fallbacka:
+    line1 = line1:gsub("(%d+)%s+STA%f[%A]", "%1 STAM")
+    line2 = line2:gsub("(%d+)%s+STA%f[%A]", "%1 STAM")
+
+    return line1 .. "\n" .. line2
+end
+
 
 -- ============================================================
 -- Enchant Name Helper (NEW)
@@ -929,14 +1013,21 @@ end
 
 clearCheckMarks = function()
     for _, value in ipairs(checkmarks) do
-        if value and value.SetTexture then value:SetTexture(nil) end
+        if value then
+            if value.Hide then value:Hide() end
+            if value.SetTexture then value:SetTexture(nil) end
+            if value.SetVertexColor then value:SetVertexColor(1, 1, 1, 1) end  -- Reset color
+        end
     end
     checkmarks = {}
 end
 
 clearBoeMarks = function()
     for _, value in ipairs(boemarks) do
-        if value and value.SetTexture then value:SetTexture(nil) end
+        if value then
+            if value.Hide then value:Hide() end
+            if value.SetTexture then value:SetTexture(nil) end
+        end
     end
     boemarks = {}
 end
@@ -1208,33 +1299,106 @@ OpenChecklistExport = function()
 end
 
 -- ============================================================
--- Checklist Panel Renderers (ENHANCED with difficulty tags)
+-- Checklist Panel Renderers (ENHANCED with collapsible sections)
 -- ============================================================
 
-local function DrawBossHeaderGUI(container, bossName, instanceName, difficulty)
+-- Get difficulty icon based on difficulty string
+local function GetDifficultyIcon(difficulty)
+    if not difficulty then return "" end
+    local diff = difficulty:upper()
+    
+    -- Use ASCII-safe indicators for 3.3.5 compatibility
+    -- Heroic/HM modes
+    if diff:find("HM") or diff:find("HEROIC") or diff:find("H$") then
+        return "|cffff0000*H*|r"  -- Red H for Heroic
+    end
+    
+    -- 25-man (nothing special, just show the number)
+    if diff:find("25") then
+        return ""  -- Already shown in difficulty text
+    end
+    
+    -- 10-man
+    if diff:find("10") then
+        return ""  -- Already shown in difficulty text
+    end
+    
+    return ""
+end
+
+-- Draw separator line between boss groups
+local function DrawSeparatorLine(container)
+    local sepGroup = NewSimpleGroup()
+    sepGroup:SetFullWidth(true)
+    sepGroup:SetHeight(12)
+    
+    local sepLbl = AceGUI:Create("Label")
+    sepLbl:SetText("|cff555555- - - - - - - - - - - - - - - - - - - - - - - -|r")
+    sepLbl:SetFullWidth(true)
+    sepLbl:SetJustifyH("CENTER")
+    sepGroup:AddChild(sepLbl)
+    container:AddChild(sepGroup)
+end
+
+-- Forward declaration for UpdateChecklistPanel
+local UpdateChecklistPanel
+
+local function DrawBossHeaderGUI(container, bossName, instanceName, difficulty, itemCount)
+    local bossKey = bossName .. "_" .. instanceName
+    local isCollapsed = collapsedBosses[bossKey]
+    
     local group = NewSimpleGroup()
     group:SetLayout("Flow")
     group:SetFullWidth(true)
 
-    local label = AceGUI:Create("Label")
-    label:SetFont(Constants.FONTS.DEFAULT, Constants.FONTS.SIZE_LARGE + 2, "OUTLINE")
+    -- Create interactive label for clicking
+    local headerLabel = AceGUI:Create("InteractiveLabel")
+    headerLabel:SetFont(Constants.FONTS.DEFAULT, Constants.FONTS.SIZE_LARGE + 2, "OUTLINE")
     
     -- Use new colors from Constants
     local bossColor = Constants.COLORS.CHECKLIST_BOSS or "c41f3b"
     local zoneColor = Constants.COLORS.CHECKLIST_ZONE or "ff8000"
     
-    -- Format: Boss Name (10HM)
+    -- Collapse indicator (ASCII for 3.3.5 compatibility)
+    local collapseIcon = isCollapsed and "|cffffffff[+]|r " or "|cffffffff[-]|r "
+    
+    -- Difficulty icon
+    local diffIcon = GetDifficultyIcon(difficulty)
     local diffText = difficulty and (" |cffaaaaaa(" .. difficulty .. ")|r") or ""
-    local text = string.format("\n|cff%s%s|r%s\n|cff%s%s|r", 
-        bossColor, bossName:upper(), diffText, 
+    
+    -- Item count badge
+    local countBadge = itemCount and string.format(" |cff888888[%d]|r", itemCount) or ""
+    
+    -- Format: [▼/▶] Boss Name (10HM) [skull/star] [count]
+    local text = string.format("\n%s|cff%s%s|r%s %s%s\n|cff%s%s|r", 
+        collapseIcon,
+        bossColor, bossName:upper(), diffText, diffIcon, countBadge,
         zoneColor, instanceName:gsub("[%(%)]", ""))
     
-    label:SetText(text)
-    label:SetJustifyH("CENTER")
-    label:SetFullWidth(true)
+    headerLabel:SetText(text)
+    headerLabel:SetFullWidth(true)
+    headerLabel:SetJustifyH("CENTER")
+    
+    -- Click to toggle collapse
+    headerLabel:SetCallback("OnClick", function()
+        collapsedBosses[bossKey] = not collapsedBosses[bossKey]
+        if UpdateChecklistPanel then
+            UpdateChecklistPanel()
+        end
+    end)
+    
+    -- Hover effect
+    headerLabel:SetCallback("OnEnter", function(widget)
+        widget.label:SetTextColor(1, 1, 0.5)  -- Highlight on hover
+    end)
+    headerLabel:SetCallback("OnLeave", function(widget)
+        widget.label:SetTextColor(1, 1, 1)  -- Reset color
+    end)
 
-    group:AddChild(label)
+    group:AddChild(headerLabel)
     container:AddChild(group)
+    
+    return isCollapsed
 end
 
 -- Crop icon texture to remove Blizzard borders (zoom ~108%)
@@ -1334,7 +1498,7 @@ local function DrawItemRowGUI(container, item_id, slot_name, sources)
     container:AddChild(row)
 end
 
-local function UpdateChecklistPanel()
+UpdateChecklistPanel = function()
     if not bisChecklistMode then
         if checklistPanel then checklistPanel:Hide() end
         return
@@ -1386,9 +1550,16 @@ local function UpdateChecklistPanel()
         local emblemInfo = Constants and Constants.EMBLEM_VENDORS and Constants.EMBLEM_VENDORS["Emblem of Ascension"]
         local color = emblemInfo and emblemInfo.color or (Constants.COLORS.ASCENSION or "00ffcc")
         
+        local isFirstGroup = true
         for _, cost in ipairs(costs) do
             local data = itemsByCost[cost]
             local itemCount = #data.items
+            
+            -- Add separator between cost groups (not before first)
+            if not isFirstGroup then
+                DrawSeparatorLine(checklistPanel._container)
+            end
+            isFirstGroup = false
             
             -- Cost group header
             local costHeader = NewSimpleGroup()
@@ -1484,7 +1655,7 @@ local function UpdateChecklistPanel()
         local sepGroup = NewSimpleGroup()
         sepGroup:SetFullWidth(true)
         local sepLbl = AceGUI:Create("Label")
-        sepLbl:SetText("\n|cffffffff────────────────────|r")
+        sepLbl:SetText("\n|cffffffff--------------------|r")
         sepLbl:SetFullWidth(true)
         sepGroup:AddChild(sepLbl)
         checklistPanel._container:AddChild(sepGroup)
@@ -1507,9 +1678,10 @@ local function UpdateChecklistPanel()
             local totalSlots = 0
             local collectedSlots = 0
             
-            -- Count total BIS slots and collected
-            if currentFilteredData then
-                for _, slot in ipairs(currentFilteredData) do
+            -- Use allSlotsForProgress which contains ALL slots (not just displayed ones)
+            local allSlots = _G.Bistooltip_allSlotsForProgress or currentFilteredData
+            if allSlots then
+                for _, slot in ipairs(allSlots) do
                     if slot[1] and slot[1] > 0 then
                         totalSlots = totalSlots + 1
                         if SlotBISCompleted and SlotBISCompleted(slot) then
@@ -1541,6 +1713,7 @@ local function UpdateChecklistPanel()
         for z in pairs(groups or {}) do table.insert(zones, z) end
         table.sort(zones)
 
+        local isFirstBoss = true
         for _, z in ipairs(zones) do
             local bosses = {}
             for b in pairs(groups[z]) do table.insert(bosses, b) end
@@ -1548,9 +1721,19 @@ local function UpdateChecklistPanel()
 
             for _, b in ipairs(bosses) do
                 local row = groups[z][b]
-                DrawBossHeaderGUI(checklistPanel._container, b, z, row and row.difficulty)
+                local itemCount = row and row.items and #row.items or 0
+                
+                -- Add separator line between bosses (not before first)
+                if not isFirstBoss then
+                    DrawSeparatorLine(checklistPanel._container)
+                end
+                isFirstBoss = false
+                
+                -- Draw boss header (returns true if collapsed)
+                local isCollapsed = DrawBossHeaderGUI(checklistPanel._container, b, z, row and row.difficulty, itemCount)
 
-                if row and row.items then
+                -- Only draw items if not collapsed
+                if not isCollapsed and row and row.items then
                     for _, it in ipairs(row.items) do
                         DrawItemRowGUI(checklistPanel._container, it.id, it.slot, it.sources)
                     end
@@ -1662,6 +1845,12 @@ local function createItemFrame(item_id, size, with_checkmark)
         local markSize = math.max(18, math.floor(size * 0.60))
         local borderSize = math.floor(size * 1.6)
 
+        -- Determine colors first
+        local r, g, b, a = 1.00, 0.85, 0.15, 1.00  -- Gold for bags
+        if with_checkmark == "equipped" then
+            r, g, b, a = 0.00, 1.00, 0.00, 1.00  -- Bright green for equipped
+        end
+
         local border = item_frame.frame:CreateTexture(nil, "OVERLAY")
         border:SetTexture(texBorder)
         border:SetBlendMode("ADD")
@@ -1669,6 +1858,7 @@ local function createItemFrame(item_id, size, with_checkmark)
         border:SetWidth(borderSize)
         border:SetHeight(borderSize)
         border:SetTexCoord(0.13, 0.87, 0.13, 0.87)
+        border:SetVertexColor(r, g, b, 0.85)
 
         local shadow = item_frame.frame:CreateTexture(nil, "OVERLAY")
         shadow:SetTexture(texCheck)
@@ -1682,14 +1872,7 @@ local function createItemFrame(item_id, size, with_checkmark)
         mark:SetWidth(markSize)
         mark:SetHeight(markSize)
         mark:SetPoint("BOTTOMRIGHT", -3, 3)
-
-        if with_checkmark == "equipped" then
-            mark:SetVertexColor(0.20, 1.00, 0.20, 1.00)
-            border:SetVertexColor(0.20, 1.00, 0.20, 0.85)
-        else
-            mark:SetVertexColor(1.00, 0.85, 0.15, 1.00)
-            border:SetVertexColor(1.00, 0.85, 0.15, 0.85)
-        end
+        mark:SetVertexColor(r, g, b, a)
 
         item_frame.frame._bt_owned_border = border
         item_frame.frame._bt_owned_shadow = shadow
@@ -1721,6 +1904,15 @@ local function createItemFrame(item_id, size, with_checkmark)
         boeMark:SetPoint("TOPLEFT", 2, -5)
         boeMark:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
         table.insert(boemarks, boeMark)
+    end
+
+    -- Add OnRelease to clean up textures when widget is released
+    local origOnRelease = item_frame.OnRelease
+    item_frame.OnRelease = function(w)
+        if w and w.frame then
+            ResetIconFrame(w.frame)
+        end
+        if origOnRelease then origOnRelease(w) end
     end
 
     item_frame:SetCallback("OnClick", function(button)
@@ -1778,72 +1970,112 @@ end
 -- Gem Grid Frame
 -- ============================================================
 
+-- ============================================================
+-- Gem Grid Frame (2x2)
+-- ============================================================
 local function createGemGridFrame(gemIds)
     local g = NewSimpleGroup()
     g:SetLayout("Table")
     g:SetWidth(30)
-    g:SetHeight(40)
+    g:SetHeight(30)
     g:SetAutoAdjustHeight(false)
     g:SetUserData("table", {
         columns = { { width = 14 }, { width = 14 } },
-        spaceV = -6,
+        spaceV = 0,
         spaceH = 0,
         align = "TOPLEFT",
     })
 
+    local function Spacer(w)
+        local s = AceGUI:Create("Label")
+        s:SetText(" ")
+        s:SetWidth(w or 14)
+        if s.SetFullWidth then s:SetFullWidth(false) end
+        return s
+    end
+
+    -- zawsze 4 komórki (2x2), żeby layout się nie “łamał”
     for i = 1, 4 do
         local id = gemIds and gemIds[i]
-        if id then
-            g:AddChild(createItemFrame(id, 14))
+        if id and id > 0 then
+            local ic = createItemFrame(id, 14)
+            if ic and ic.SetWidth then ic:SetWidth(14) end
+            g:AddChild(ic)
         else
-            g:AddChild(AceGUI:Create("Label"))
+            g:AddChild(Spacer(14))
         end
     end
 
     return g
 end
 
+
 -- ============================================================
--- Enhancement Frame
+-- Enhancement Frame (two columns: enchants | gems with counts)
 -- ============================================================
 
-local function createEnhancementsFrame(enhancements)
+-- ============================================================
+-- Enhancement Frame (Enchant left + Gems 2x2 right)
+-- ============================================================
+local function createEnhancementsFrame(enhs)
     local frame = NewSimpleGroup()
     frame:SetLayout("Table")
-    frame:SetWidth(40)
-    frame:SetHeight(40)
     frame:SetAutoAdjustHeight(false)
+    frame:SetHeight(40)
+    frame:SetWidth(64)
     frame:SetUserData("table", {
-        columns = { { width = 16 }, { width = 16 } },
-        spaceV = -6,
-        spaceH = 0,
+        columns = { { width = 18 }, { width = 34 } },
+        spaceH = 2,
+        spaceV = 0,
         align = "TOPLEFT",
     })
 
-    local count = 0
-    if type(enhancements) == "table" then
-        for _, enhancement in ipairs(enhancements) do
-            local size = 16
-            if enhancement and enhancement.type == "none" then
-                frame:AddChild(createItemFrame(-1, size))
-            elseif enhancement and enhancement.type == "item" then
-                frame:AddChild(createItemFrame(enhancement.id, size))
-            elseif enhancement and enhancement.type == "spell" then
-                frame:AddChild(createSpellFrame(enhancement.id, size))
-            else
-                frame:AddChild(AceGUI:Create("Label"))
+    local enchantSpellId = nil
+    local gemIds = {}
+
+    if enhs then
+        for _, enh in ipairs(enhs) do
+            if enh and enh.type == "spell" and enh.id and enh.id > 0 and not enchantSpellId then
+                enchantSpellId = enh.id
+            elseif enh and enh.type == "item" and enh.id and enh.id > 0 then
+                -- w Twoich danych: itemy = gemy
+                table.insert(gemIds, enh.id)
             end
-            count = count + 1
-            if count >= 6 then break end
         end
     end
 
-    for _ = count + 1, 6 do
-        frame:AddChild(AceGUI:Create("Label"))
+    local function Spacer(w)
+        local s = AceGUI:Create("Label")
+        s:SetText(" ")
+        s:SetWidth(w or 18)
+        if s.SetFullWidth then s:SetFullWidth(false) end
+        return s
+    end
+
+    -- col 1: enchant (1 “linia”)
+    if enchantSpellId then
+        local ench = createSpellFrame(enchantSpellId, 18)
+        if ench and ench.SetWidth then ench:SetWidth(18) end
+        frame:AddChild(ench)
+    else
+        frame:AddChild(Spacer(18))
+    end
+
+    -- col 2: gemy (2 linie = 2x2)
+    if gemIds and #gemIds > 0 then
+        frame:AddChild(createGemGridFrame(gemIds))
+    else
+        local empty = NewSimpleGroup()
+        empty:SetLayout("Fill")
+        empty:SetAutoAdjustHeight(false)
+        empty:SetWidth(30)
+        empty:SetHeight(30)
+        frame:AddChild(empty)
     end
 
     return frame
 end
+
 
 -- ============================================================
 -- Boss/Item Info Frame for Checklist Mode (ENHANCED)
@@ -1998,21 +2230,23 @@ local function DrawGemPlanRow(gemIds)
     local box = NewSimpleGroup()
     box:SetLayout("Flow")
     box:SetAutoAdjustHeight(false)
-    box:SetHeight(26)
+    box:SetHeight(30)
     box:SetUserData("cell", { colspan = 6 })
 
-    box.frame:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 10,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 },
-    })
-    box.frame:SetBackdropColor(0, 0, 0, 0.4)
-    box.frame:SetBackdropBorderColor(0.10, 0.55, 1.00, 0.7)
+    -- Remove any default backdrop
+    if box.frame.SetBackdrop then
+        box.frame:SetBackdrop(nil)
+    end
 
-    -- Left padding spacer
+    -- Calculate centering padding based on gem count
+    local gemCount = #gemIds
+    local estimatedWidth = gemCount * 70 + (gemCount - 1) * 6  -- icon+text + spacers
+    local boxWidth = 300  -- Approximate box width
+    local leftPadding = math.max(4, math.floor((boxWidth - estimatedWidth) / 2))
+    
+    -- Left padding spacer for centering
     local leftPad = AceGUI:Create("Label")
-    leftPad:SetWidth(6)
+    leftPad:SetWidth(leftPadding)
     leftPad:SetText("")
     box:AddChild(leftPad)
 
@@ -2022,7 +2256,7 @@ local function DrawGemPlanRow(gemIds)
         -- Add spacer between gem groups (icon+text)
         if i > 1 then
             local spacer = AceGUI:Create("Label")
-            spacer:SetWidth(12)
+            spacer:SetWidth(6)
             spacer:SetText("")
             box:AddChild(spacer)
         end
@@ -2064,14 +2298,20 @@ local function DrawGemPlanRow(gemIds)
         box:AddChild(gemIcon)
         
         -- Add stat text
-        local t = BuildGemStatToken(id)
-        if t and t ~= "" then
-            local statLbl = AceGUI:Create("Label")
-            statLbl:SetFont(Constants.FONTS.DEFAULT, Constants.FONTS.SIZE_SMALL, "OUTLINE")
-            statLbl:SetText("|cff55aaff" .. t .. "|r")
-            statLbl:SetWidth(85)
-            box:AddChild(statLbl)
-        end
+local t = BuildGemStatTokenTwoLines(id)
+if t and t ~= "" then
+    local statLbl = AceGUI:Create("Label")
+    statLbl:SetFont(Constants.FONTS.DEFAULT, Constants.FONTS.SIZE_SMALL, "OUTLINE")
+    statLbl:SetText("|cff55aaff" .. t .. "|r")
+    statLbl:SetWidth(60)      -- było 52
+    statLbl:SetHeight(26)     -- żeby 2 linie nie były cięte
+    if statLbl.label then
+        statLbl.label:SetJustifyH("LEFT")
+        statLbl.label:SetWordWrap(true)
+    end
+    box:AddChild(statLbl)
+end
+
     end
 
     do
@@ -2086,10 +2326,164 @@ local function DrawGemPlanRow(gemIds)
 end
 
 -- ============================================================
+-- Custom Priority Management
+-- ============================================================
+
+local function GetCustomPriorityKey(slotName)
+    return string.format("%s_%s_%s_%s", 
+        State.class or "Unknown",
+        State.spec or "Unknown", 
+        State.phase or "Unknown",
+        slotName or "Unknown")
+end
+
+-- Save custom priority to saved variables (from working 1.3.2)
+local function SaveCustomPriority(slotName, slot)
+    local key = GetCustomPriorityKey(slotName)
+    local itemIds = {}
+    for i, id in ipairs(slot) do
+        itemIds[i] = id
+    end
+    customPriorities[key] = itemIds
+    
+    -- Persist to saved variables
+    if BistooltipAddon.db and BistooltipAddon.db.char then
+        BistooltipAddon.db.char.custom_priorities = BistooltipAddon.db.char.custom_priorities or {}
+        BistooltipAddon.db.char.custom_priorities[key] = itemIds
+    end
+end
+
+-- Load and APPLY custom priority to slot data
+-- This modifies the actual slot table so tooltips and BIS checklist see the changes
+local function LoadCustomPriority(slotName, slot)
+    local key = GetCustomPriorityKey(slotName)
+    
+    -- Store original order BEFORE any modifications (only once per key)
+    if not originalSlotOrders[key] then
+        local origOrder = {}
+        for i, id in ipairs(slot) do
+            if type(id) == "number" then
+                origOrder[i] = id
+            end
+        end
+        originalSlotOrders[key] = origOrder
+    end
+    
+    local savedOrder = customPriorities[key]
+    
+    if not savedOrder then
+        -- Try loading from saved variables
+        if BistooltipAddon.db and BistooltipAddon.db.char and BistooltipAddon.db.char.custom_priorities then
+            savedOrder = BistooltipAddon.db.char.custom_priorities[key]
+            if savedOrder then
+                customPriorities[key] = savedOrder
+            end
+        end
+    end
+    
+    if savedOrder and #savedOrder > 0 then
+        -- Reorder slot items based on saved priority
+        local newOrder = {}
+        local usedIndices = {}
+        
+        -- First, add items in saved order
+        for _, savedId in ipairs(savedOrder) do
+            for i, slotId in ipairs(slot) do
+                if slotId == savedId and not usedIndices[i] then
+                    table.insert(newOrder, slotId)
+                    usedIndices[i] = true
+                    break
+                end
+            end
+        end
+        
+        -- Then add any remaining items not in saved order
+        for i, slotId in ipairs(slot) do
+            if not usedIndices[i] then
+                table.insert(newOrder, slotId)
+            end
+        end
+        
+        -- Apply new order - THIS MODIFIES THE ACTUAL SLOT DATA
+        for i, id in ipairs(newOrder) do
+            slot[i] = id
+        end
+    end
+end
+
+-- Restore original slot order (used by reset)
+local function RestoreOriginalOrder(slotName, slot)
+    local key = GetCustomPriorityKey(slotName)
+    local origOrder = originalSlotOrders[key]
+    
+    if origOrder and #origOrder > 0 then
+        -- Restore original order to slot
+        for i, id in ipairs(origOrder) do
+            slot[i] = id
+        end
+    end
+end
+
+-- Clear custom priorities and restore original order for current spec/phase
+local function ResetCustomPriorities()
+    local prefix = string.format("%s_%s_%s_", 
+        State.class or "Unknown",
+        State.spec or "Unknown", 
+        State.phase or "Unknown")
+    
+    -- First, restore original orders to the actual slot data
+    if Bistooltip_bislists and State.class and State.spec and State.phase then
+        local slots = Bistooltip_bislists[State.class] and 
+                      Bistooltip_bislists[State.class][State.spec] and
+                      Bistooltip_bislists[State.class][State.spec][State.phase]
+        if slots then
+            for _, slot in ipairs(slots) do
+                if slot.slot_name then
+                    RestoreOriginalOrder(slot.slot_name, slot)
+                end
+            end
+        end
+    end
+    
+    -- Clear saved custom priorities
+    for key, _ in pairs(customPriorities) do
+        if key:find(prefix, 1, true) == 1 then
+            customPriorities[key] = nil
+        end
+    end
+    
+    -- Clear original orders so they can be re-captured
+    for key, _ in pairs(originalSlotOrders) do
+        if key:find(prefix, 1, true) == 1 then
+            originalSlotOrders[key] = nil
+        end
+    end
+    
+    -- Clear from saved variables
+    if BistooltipAddon.db and BistooltipAddon.db.char and BistooltipAddon.db.char.custom_priorities then
+        for key, _ in pairs(BistooltipAddon.db.char.custom_priorities) do
+            if key:find(prefix, 1, true) == 1 then
+                BistooltipAddon.db.char.custom_priorities[key] = nil
+            end
+        end
+    end
+end
+
+-- Clean up all selection borders (called before redraw)
+local function ClearAllSelectionBorders()
+    for _, border in ipairs(selectionBorders) do
+        if border and border.Hide then
+            border:Hide()
+        end
+    end
+    selectionBorders = {}
+end
+
+-- ============================================================
 -- Draw Item Slot
 -- ============================================================
 
-local function drawItemSlot(slot)
+local function drawItemSlot(slot, zebraOn)
     -- Slot name label (bold)
     local f = AceGUI:Create("Label")
     f:SetText("|cffffd700" .. slot.slot_name .. "|r")
@@ -2105,6 +2499,10 @@ local function drawItemSlot(slot)
         spec_frame:AddChild(createEnhancementsFrame(slot.enhs))
     end
 
+    local slotName = slot.slot_name
+    local isUnlocked = unlockedSlots[slotName]
+    
+    -- Iterate directly over slot (LoadCustomPriority already modified it)
     for i, original_item_id in ipairs(slot) do
         local item_id = original_item_id
 
@@ -2140,8 +2538,127 @@ local function drawItemSlot(slot)
                     w.frame._bt_countText:SetText("")
                 end
             end
+            
+            -- Check if this item is selected for swap (show red border)
+            local isSelected = selectedSwapItem and 
+                              selectedSwapItem.slotName == slotName and 
+                              selectedSwapItem.index == i
+            
+            if isSelected and w.frame then
+                -- Add thick red border to show selection - use same pattern as checkmark
+                local size = Constants.UI.ICON_SIZE_ITEM or 45
+                local borderSize = math.floor(size * 1.6)
+                
+                local border = w.frame:CreateTexture(nil, "OVERLAY")
+                border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+                border:SetBlendMode("ADD")
+                border:SetVertexColor(1, 0, 0, 1)  -- Red
+                border:SetPoint("CENTER", w.frame, "CENTER", 0, 0)
+                border:SetWidth(borderSize)
+                border:SetHeight(borderSize)
+                border:SetTexCoord(0.13, 0.87, 0.13, 0.87)
+                w.frame._selectBorder = border
+                -- Track this border for cleanup
+                table.insert(selectionBorders, border)
+            end
+            
+            -- In customize mode with unlocked slot, add click to select/swap
+            if customizeMode and isUnlocked and w.SetCallback then
+                local itemIndex = i
+                w:SetCallback("OnClick", function(widget, event, button)
+                    if button == "LeftButton" then
+                        -- Save scroll position BEFORE any changes
+                        if spec_frame and spec_frame.localstatus then
+                            savedScrollValue = spec_frame.localstatus.scrollvalue or 0
+                        end
+                        
+                        if selectedSwapItem and selectedSwapItem.slotName == slotName then
+                            if selectedSwapItem.index == itemIndex then
+                                -- Clicking same item - deselect
+                                selectedSwapItem = nil
+                            else
+                                -- Second click on different item - perform swap directly on slot
+                                local temp = slot[selectedSwapItem.index]
+                                slot[selectedSwapItem.index] = slot[itemIndex]
+                                slot[itemIndex] = temp
+                                -- Save custom priority
+                                SaveCustomPriority(slotName, slot)
+                                -- Clear selection after swap
+                                selectedSwapItem = nil
+                            end
+                        else
+                            -- First click - select this item
+                            selectedSwapItem = {slotName = slotName, index = itemIndex, itemId = item_id}
+                        end
+                        drawSpecData()
+                    elseif button == "RightButton" then
+                        -- Save scroll position
+                        if spec_frame and spec_frame.localstatus then
+                            savedScrollValue = spec_frame.localstatus.scrollvalue or 0
+                        end
+                        -- Right click - clear selection or link to chat
+                        if selectedSwapItem then
+                            selectedSwapItem = nil
+                            drawSpecData()
+                        else
+                            local _, link = GetItemInfo(item_id)
+                            if link then ChatEdit_InsertLink(link) end
+                        end
+                    end
+                end)
+            elseif not customizeMode or not isUnlocked then
+                -- Normal click behavior - link to chat
+                if w.SetCallback then
+                    w:SetCallback("OnClick", function(widget, event, button)
+                        if button == "LeftButton" then
+                            local _, link = GetItemInfo(item_id)
+                            if link then ChatEdit_InsertLink(link) end
+                        end
+                    end)
+                end
+            end
+            
             spec_frame:AddChild(w)
         end
+    end
+    
+    -- Lock icon column (only in customize mode, NOT in BIS checklist)
+    if customizeMode and not bisChecklistMode then
+        local lockBtn = AceGUI:Create("InteractiveLabel")
+        local lockIcon = isUnlocked and "|cff00ff00[O]|r" or "|cffaaaaaa[X]|r"
+        lockBtn:SetText(lockIcon)
+        lockBtn:SetFont(Constants.FONTS.DEFAULT, Constants.FONTS.SIZE_MEDIUM, "")
+        lockBtn:SetWidth(30)
+        lockBtn:SetCallback("OnClick", function()
+            -- Save scroll position
+            if spec_frame and spec_frame.localstatus then
+                savedScrollValue = spec_frame.localstatus.scrollvalue or 0
+            end
+            
+            local wasUnlocked = unlockedSlots[slotName]
+            unlockedSlots[slotName] = not unlockedSlots[slotName]
+            
+            -- Clear selection if locking this slot
+            if not unlockedSlots[slotName] and selectedSwapItem and selectedSwapItem.slotName == slotName then
+                selectedSwapItem = nil
+            end
+            
+            if BistooltipAddon.db and BistooltipAddon.db.char then
+                BistooltipAddon.db.char.unlocked_slots = unlockedSlots
+            end
+            drawSpecData()
+        end)
+        lockBtn:SetCallback("OnEnter", function(widget)
+            GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
+            if isUnlocked then
+                GameTooltip:SetText("|cff00ff00UNLOCKED|r\nClick item to select (red border)\nClick another item to SWAP\nRight-click to cancel\nClick here to lock")
+            else
+                GameTooltip:SetText("|cffaaaaaaLOCKED|r\nClick to unlock slot for customization")
+            end
+            GameTooltip:Show()
+        end)
+        lockBtn:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+        spec_frame:AddChild(lockBtn)
     end
 
     -- Gem plan row (only in checklist mode)
@@ -2149,20 +2666,13 @@ local function drawItemSlot(slot)
         DrawGemPlanRow(gemIds)
     end
     
-    -- Visual separator line between slots
-    if bisChecklistMode then
-        -- Create separator spanning all columns
-        for col = 1, 8 do
-            local sep = AceGUI:Create("Label")
-            if col == 1 then
-                sep:SetText("|cff444444─────────────────────────────────────────────────────────────────────────────|r")
-            else
-                sep:SetText("")
-            end
-            sep:SetFont(Constants.FONTS.DEFAULT, 6, "")
-            spec_frame:AddChild(sep)
-        end
-    end
+    local spacer = AceGUI:Create("Label")
+    spacer:SetText(" ")
+    spacer:SetFullWidth(true)
+    spacer:SetHeight(4) -- reguluj: 4-10
+    spacer:SetUserData("cell", { colspan = (customizeMode and not bisChecklistMode) and 9 or 8 })
+    spec_frame:AddChild(spacer)
+
 end
 
 -- ============================================================
@@ -2171,6 +2681,18 @@ end
 
 local function drawTableHeader(frame)
     local color = 0.6
+
+    -- Get current table layout widths
+    local itemColWidth = 60  -- Default item column width
+    local smallColWidth = 48
+    
+    if bisChecklistMode then
+        itemColWidth = 54
+        smallColWidth = 48
+    elseif customizeMode then
+        itemColWidth = 55
+        smallColWidth = 45
+    end
 
     local f = AceGUI:Create("Label")
     f:SetText("Slot")
@@ -2199,6 +2721,51 @@ local function drawTableHeader(frame)
         f:SetColor(color, color, color)
         frame:AddChild(f)
     end
+    
+    -- Lock column header (only in customize mode AND not in BIS checklist)
+    if customizeMode and not bisChecklistMode then
+        local lockHeader = AceGUI:Create("InteractiveLabel")
+        lockHeader:SetText("|cffffd700[L]|r")
+        lockHeader:SetFont(Constants.FONTS.DEFAULT, Constants.FONTS.SIZE_MEDIUM, "")
+        lockHeader:SetWidth(30)
+        -- Click to unlock all slots
+        lockHeader:SetCallback("OnClick", function()
+            -- Toggle all slots
+            local allUnlocked = true
+            for slotName, _ in pairs(unlockedSlots) do
+                if not unlockedSlots[slotName] then
+                    allUnlocked = false
+                    break
+                end
+            end
+            -- If all unlocked, lock all. Otherwise unlock all.
+            if allUnlocked and next(unlockedSlots) then
+                unlockedSlots = {}
+                selectedSwapItem = nil
+            else
+                -- Unlock all current slots
+                if currentFilteredData then
+                    for _, slot in ipairs(currentFilteredData) do
+                        if slot.slot_name then
+                            unlockedSlots[slot.slot_name] = true
+                        end
+                    end
+                end
+            end
+            -- Save scroll position
+            if spec_frame and spec_frame.localstatus then
+                savedScrollValue = spec_frame.localstatus.scrollvalue or 0
+            end
+            drawSpecData()
+        end)
+        lockHeader:SetCallback("OnEnter", function(widget)
+            GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
+            GameTooltip:SetText("Click to toggle all locks")
+            GameTooltip:Show()
+        end)
+        lockHeader:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+        frame:AddChild(lockHeader)
+    end
 end
 
 -- ============================================================
@@ -2216,6 +2783,9 @@ end
 -- ============================================================
 
 drawSpecData = function()
+    -- Clear all selection borders first (before releasing children)
+    ClearAllSelectionBorders()
+    
     clearCheckMarks()
     clearBoeMarks()
     saveData()
@@ -2282,15 +2852,33 @@ drawSpecData = function()
         return false
     end
 
+    -- Store filtered data for other functions (like progress bar)
+    currentFilteredData = {}
+    
+    -- Store ALL slots for progress bar calculation (regardless of completion status)
+    local allSlotsForProgress = {}
+    
     for i, slot in ipairs(slots) do
         if rowMatches(slot) and slotHasAscensionSource(slot) then
+            -- Apply custom priorities - this MODIFIES slot data so tooltips see the change
+            if slot.slot_name then
+                LoadCustomPriority(slot.slot_name, slot)
+            end
+            
+            -- Always add to allSlotsForProgress for correct progress counting
+            table.insert(allSlotsForProgress, slot)
+            
             if bisChecklistMode and SlotBISCompleted(slot) then
-                -- Skip completed slots in checklist mode
+                -- Skip completed slots in checklist mode (for display only)
             else
+                table.insert(currentFilteredData, slot)
                 drawItemSlot(slot)
             end
         end
     end
+    
+    -- Store the full slot list for progress bar updates
+    _G.Bistooltip_allSlotsForProgress = allSlotsForProgress
 
     -- Update hint label
     if checklistSummaryLabel then
@@ -2333,6 +2921,18 @@ drawSpecData = function()
 
     -- Update side panel
     UpdateChecklistPanel()
+    
+    -- Restore scroll position after redraw (use longer delay to ensure frame is ready)
+    if savedScrollValue and savedScrollValue > 0 and spec_frame then
+        -- Use a slightly longer delay to ensure the scroll frame content is fully rendered
+        C_Timer.After(0.05, function()
+            if spec_frame and spec_frame.SetScroll then
+                spec_frame:SetScroll(savedScrollValue)
+                -- Reset the saved value after restoring
+                savedScrollValue = 0
+            end
+        end)
+    end
 end
 
 -- ============================================================
@@ -2446,7 +3046,10 @@ local function drawDropdowns()
         columns = {
             Constants.UI.CLASS_DROPDOWN_WIDTH, 
             Constants.UI.SPEC_DROPDOWN_WIDTH, 
-            Constants.UI.PHASE_DROPDOWN_WIDTH
+            Constants.UI.PHASE_DROPDOWN_WIDTH,
+            80,  -- Lock Phase checkbox
+            90,  -- Customize checkbox
+            35,  -- Reset button (smaller)
         },
         space = 1,
         align = "BOTTOMRIGHT"
@@ -2459,6 +3062,18 @@ local function drawDropdowns()
     specDropdown:SetDisabled(true)
 
     phaseDropDown:SetCallback("OnValueChanged", function(_, _, key)
+        -- If phase is locked, prevent changing
+        if blockedPhase then
+            -- Find the index of blocked phase and revert
+            for i, p in ipairs(Bistooltip_phases) do
+                if p == blockedPhase then
+                    phaseDropDown:SetValue(i)
+                    State.phase_index = i
+                    State.phase = blockedPhase
+                    return
+                end
+            end
+        end
         State.phase_index = key
         State.phase = Bistooltip_phases[key]
         drawSpecData()
@@ -2489,6 +3104,100 @@ local function drawDropdowns()
     dropDownGroup:AddChild(classDropdown)
     dropDownGroup:AddChild(specDropdown)
     dropDownGroup:AddChild(phaseDropDown)
+    
+    -- Lock Phase checkbox - locks tooltips to show only items up to this phase
+    local lockPhaseCheck = AceGUI:Create("CheckBox")
+    lockPhaseCheck:SetLabel("Lock")
+    lockPhaseCheck:SetWidth(70)
+    lockPhaseCheck:SetValue(blockedPhase ~= nil)
+    lockPhaseCheck:SetCallback("OnValueChanged", function(_, _, val)
+        if val then
+            blockedPhase = State.phase
+            blockedPhaseIndex = State.phase_index
+            if BistooltipAddon.db and BistooltipAddon.db.char then
+                BistooltipAddon.db.char.blocked_phase = blockedPhase
+                BistooltipAddon.db.char.blocked_phase_index = blockedPhaseIndex
+            end
+        else
+            blockedPhase = nil
+            blockedPhaseIndex = nil
+            if BistooltipAddon.db and BistooltipAddon.db.char then
+                BistooltipAddon.db.char.blocked_phase = nil
+                BistooltipAddon.db.char.blocked_phase_index = nil
+            end
+        end
+        -- Refresh tooltips will use new blockedPhase value
+    end)
+    lockPhaseCheck:SetCallback("OnEnter", function(widget)
+        GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
+        if blockedPhase then
+            GameTooltip:SetText("|cff00ff00Phase Locked: " .. blockedPhase .. "|r\nTooltips will only show items from this phase and earlier.\nUncheck to show all phases.")
+        else
+            GameTooltip:SetText("Lock current phase for tooltips.\nWhen locked, tooltips will only show BIS info\nfor this phase and earlier phases.")
+        end
+        GameTooltip:Show()
+    end)
+    lockPhaseCheck:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+    dropDownGroup:AddChild(lockPhaseCheck)
+    
+    -- Customize checkbox (only works in standard mode, not BIS checklist)
+    local customizeCheck = AceGUI:Create("CheckBox")
+    customizeCheck:SetLabel("Customize")
+    customizeCheck:SetWidth(85)
+    customizeCheck:SetValue(customizeMode and true or false)
+    customizeCheck:SetDisabled(bisChecklistMode)  -- Disabled in BIS checklist mode
+    customizeCheck:SetCallback("OnValueChanged", function(_, _, val)
+        customizeMode = val and true or false
+        
+        -- Clear selection when toggling
+        selectedSwapItem = nil
+        
+        if BistooltipAddon.db and BistooltipAddon.db.char then
+            BistooltipAddon.db.char.customize_mode = customizeMode
+        end
+        -- Update reset button visibility
+        if resetBtnRef then
+            if customizeMode then
+                resetBtnRef.frame:Show()
+            else
+                resetBtnRef.frame:Hide()
+            end
+        end
+        ApplySpecTable()
+        drawSpecData()
+    end)
+    dropDownGroup:AddChild(customizeCheck)
+    customizeToggleRef = customizeCheck  -- Store reference for later
+    
+    -- Reset button for customization - only visible in customize mode
+    local resetBtn = AceGUI:Create("Button")
+    resetBtn:SetText("R")
+    resetBtn:SetWidth(30)
+    resetBtn:SetCallback("OnClick", function()
+        if not customizeMode then return end
+        -- Save scroll position
+        if spec_frame and spec_frame.localstatus then
+            savedScrollValue = spec_frame.localstatus.scrollvalue or 0
+        end
+        -- Use the new reset function
+        ResetCustomPriorities()
+        -- Clear unlocked slots and selection
+        unlockedSlots = {}
+        selectedSwapItem = nil
+        drawSpecData()
+    end)
+    resetBtn:SetCallback("OnEnter", function(widget)
+        GameTooltip:SetOwner(widget.frame, "ANCHOR_TOP")
+        GameTooltip:SetText("|cffff6666[R]eset|r\nRestores original item order\nfor current class/spec/phase")
+        GameTooltip:Show()
+    end)
+    resetBtn:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+    -- Hide if not in customize mode
+    if not customizeMode then
+        resetBtn.frame:Hide()
+    end
+    dropDownGroup:AddChild(resetBtn)
+    resetBtnRef = resetBtn  -- Store reference
 
     local fillerFrame = AceGUI:Create("Label")
     fillerFrame:SetText(" ")
@@ -2511,7 +3220,18 @@ end
 local function createSpecFrame()
     local frame = AceGUI:Create("ScrollFrame")
     frame:SetLayout("Table")
-    frame:SetUserData("table", bisChecklistMode and SPEC_TABLE_CHECKLIST or SPEC_TABLE_DEFAULT)
+    -- Use same logic as ApplySpecTable
+    local tableLayout
+    if bisChecklistMode then
+        -- BIS checklist mode - customize is disabled here
+        tableLayout = SPEC_TABLE_CHECKLIST
+    elseif customizeMode then
+        -- Customize mode only works in standard mode
+        tableLayout = SPEC_TABLE_CUSTOMIZE
+    else
+        tableLayout = SPEC_TABLE_DEFAULT
+    end
+    frame:SetUserData("table", tableLayout)
     frame:SetFullWidth(true)
     frame:SetHeight(Constants.UI.SPEC_FRAME_HEIGHT)
     frame:SetAutoAdjustHeight(false)
@@ -2569,11 +3289,12 @@ end
 -- ============================================================
 
 StaticPopupDialogs["BISTOOLTIP_DISCORD_LINK"] = {
-    text = "Join our Discord",
-    button1 = "Copy Link",
-    button2 = "Close",
+    text = "Join our Discord\n|cffaaaaaa(Select and Ctrl+C to copy)|r",
+    button1 = "OK",
     OnShow = function(self)
-        self.editBox:SetText("https://discord.gg/Xk8BKqSapd")
+        local link = "https://discord.gg/3gPCPCxbmP"
+        self.editBox:SetText(link)
+        self.editBox.data = link
         self.editBox:SetFocus()
         self.editBox:HighlightText()
     end,
@@ -2585,25 +3306,12 @@ StaticPopupDialogs["BISTOOLTIP_DISCORD_LINK"] = {
     EditBoxOnEscapePressed = function(self)
         self:GetParent():Hide()
     end,
-    EditBoxOnEnterPressed = function(self)
-        self:GetParent().button1:Click()
-    end,
-    OnHide = function(self)
-        self.data = nil
-    end,
     EditBoxOnTextChanged = function(self, userInput)
-        if userInput then
+        if userInput and self.data then
             self:SetText(self.data)
             self:HighlightText()
         end
     end,
-    OnAccept = function(self)
-        self.editBox:SetFocus()
-        self.editBox:HighlightText()
-    end,
-    OnCancel = function(self)
-        self:Hide()
-    end
 }
 
 function BistooltipAddon:OpenDiscordLink()
@@ -2677,6 +3385,27 @@ function BistooltipAddon:createMainFrame()
         if self.db.char.bis_checklist ~= nil then
             bisChecklistMode = self.db.char.bis_checklist and true or false
         end
+        -- Load new settings
+        if self.db.char.blocked_phase then
+            blockedPhase = self.db.char.blocked_phase
+        end
+        if self.db.char.blocked_phase_index then
+            blockedPhaseIndex = self.db.char.blocked_phase_index
+        end
+        if self.db.char.customize_mode ~= nil then
+            -- Customize mode only works in standard mode, not BIS checklist
+            if not bisChecklistMode then
+                customizeMode = self.db.char.customize_mode and true or false
+            else
+                customizeMode = false
+            end
+        end
+        if self.db.char.unlocked_slots then
+            unlockedSlots = self.db.char.unlocked_slots
+        end
+        if self.db.char.custom_priorities then
+            customPriorities = self.db.char.custom_priorities
+        end
     end
 
     main_frame = AceGUI:Create("Frame")
@@ -2697,6 +3426,11 @@ function BistooltipAddon:createMainFrame()
             statusFrame:SetScript("OnUpdate", nil)
             statusFrame = nil
         end
+        
+        -- Clear selection
+        selectedSwapItem = nil
+        -- Clear selection borders
+        ClearAllSelectionBorders()
 
         CleanupMainFrame()
         AceGUI:Release(widget)
@@ -2705,7 +3439,8 @@ function BistooltipAddon:createMainFrame()
 
     main_frame:SetLayout("List")
     main_frame:SetTitle(self.AddonNameAndVersion)
-    main_frame:SetStatusText(Bistooltip_source_to_url[self.db.char.data_source])
+    local statusText = (self.AddonCredits or "") .. "  |  " .. (Bistooltip_source_to_url[self.db.char.data_source] or "wowtbc.gg/wotlk")
+    main_frame:SetStatusText(statusText)
 
     drawDropdowns()
     createSpecFrame()
@@ -2756,6 +3491,23 @@ function BistooltipAddon:createMainFrame()
             if not bisChecklistMode then
                 emblemFilterMode = false
                 emblemToggle:SetValue(false)
+            end
+        end
+        
+        -- Disable customize in BIS checklist mode
+        if customizeToggleRef then
+            customizeToggleRef:SetDisabled(bisChecklistMode)
+            if bisChecklistMode and customizeMode then
+                customizeMode = false
+                customizeToggleRef:SetValue(false)
+                selectedSwapItem = nil
+            end
+        end
+        if resetBtnRef then
+            if bisChecklistMode or not customizeMode then
+                resetBtnRef.frame:Hide()
+            else
+                resetBtnRef.frame:Show()
             end
         end
 
