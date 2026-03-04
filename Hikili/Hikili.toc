@@ -1,0 +1,10 @@
+## Interface: 30300
+## Title: Hikili
+## Notes: Priority helper inspired by Hekili, tailored for WoTLK 3.3.5a.
+## Author: Local Build
+## Version: 0.1.0
+## SavedVariables: HikiliDB
+
+Core.lua
+PriorityEngine.lua
+UI.lua

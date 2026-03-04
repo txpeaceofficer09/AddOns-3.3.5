@@ -1,0 +1,11 @@
+## Interface: 30300
+## Title: ZenToast
+## Notes: Minimalist toast notifications for friends coming online/offline.
+## Author: Zendevve
+## Version: 1.1
+## SavedVariables: ZenToastDB
+
+Source\Core.lua
+Source\Config.lua
+Source\Toast.lua
+Source\Broadcast.lua

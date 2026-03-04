@@ -1,0 +1,10 @@
+# Python conversion script
+convert_to_tga.py
+
+# Source PNG files (only include the converted TGA files)
+Icons/*.png
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
