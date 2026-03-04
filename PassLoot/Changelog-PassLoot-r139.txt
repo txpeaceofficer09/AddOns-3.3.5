@@ -1,0 +1,32 @@
+------------------------------------------------------------------------
+r139 | Odlaw | 2012-10-12 23:29:21 +0000 (Fri, 12 Oct 2012) | 2 lines
+Changed paths:
+   M /trunk/Modules/ClassSpec.lua
+   M /trunk/Modules/ConfirmDE.lua
+
+ClassSpec - Add Guardian spec
+ConfirmDE - Add preferredIndex in popup.
+------------------------------------------------------------------------
+r138 | Odlaw | 2012-09-29 02:48:30 +0000 (Sat, 29 Sep 2012) | 1 line
+Changed paths:
+   M /trunk/Modules/Equipable.lua
+
+Update Equipable - Monk, and a few other class updates.
+------------------------------------------------------------------------
+r137 | Odlaw | 2012-09-03 02:01:41 +0000 (Mon, 03 Sep 2012) | 4 lines
+Changed paths:
+   M /trunk/MainGUI.lua
+   M /trunk/Modules/CanIRoll.lua
+   M /trunk/Modules/ClassSpec.lua
+   M /trunk/Modules/ItemLevel.lua
+   M /trunk/Modules/ItemName.lua
+   M /trunk/Modules/ItemPrice.lua
+   M /trunk/Modules/RequiredLevel.lua
+   M /trunk/Modules/TypeSubType.lua
+   M /trunk/PassLoot.lua
+
+Fixed some variables that were not defined local.
+Changed some StaticPopupDialogs to use a preferred index.
+Added Monk to ClassSpec.
+Fixed typo in TypeSubType.
+------------------------------------------------------------------------

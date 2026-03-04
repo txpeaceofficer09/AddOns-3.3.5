@@ -3,7 +3,6 @@
 -- ============================================================
 
 local eventFrame = CreateFrame("Frame", nil, UIParent)
-Bistooltip_phases_string = ""
 
 -- Import utilities
 local Utils = BistooltipUtils
@@ -30,10 +29,6 @@ local SPEC_BY_CLASSFILE_TAB = Constants.SPEC_BY_CLASSFILE_TAB
 -- ============================================================
 -- Local Helper Functions
 -- ============================================================
-
-local function GetSpecIcon(className, specName)
-    return Utils.GetSpecIcon(className, specName)
-end
 
 local function ParseBestRankFromPhases(phasesText)
     if not phasesText or phasesText == "" then return nil end
@@ -99,7 +94,7 @@ local function FormatShiftEntry(e)
     local classColored = ColorizeByClass(e.class, e.class)
     local iconString = e.icon and string.format("|T%s:14|t", e.icon) or ""
 
-    -- Build phase range like [PR–RS] or [T8–T9]
+    -- Build phase range like [PR-RS] or [T8-T9]
     local phases = {}
     if type(e.phases) == "string" and e.phases ~= "" then
         for token in e.phases:gmatch("([^/]+)") do
@@ -124,7 +119,7 @@ local function FormatShiftEntry(e)
     if #ordered == 1 then
         phaseTag = "|cffaaaaaa[" .. ordered[1] .. "]|r"
     elseif #ordered > 1 then
-        phaseTag = "|cffaaaaaa[" .. ordered[1] .. "–" .. ordered[#ordered] .. "]|r"
+        phaseTag = "|cffaaaaaa[" .. ordered[1] .. "-" .. ordered[#ordered] .. "]|r"
     end
 
     return string.format("%s%s%s%s",
@@ -315,7 +310,7 @@ local function printSpecLine(tooltip, slot, class_name, spec_name)
     local prefix = classNamesFiltered() and "" or "   "
     
     -- Safe icon lookup
-    local icon = GetSpecIcon(class_name, spec_name)
+    local icon = Utils.GetSpecIcon(class_name, spec_name)
     local left_text = prefix
     if icon then
         left_text = left_text .. "|T" .. icon .. ":14|t "
@@ -333,14 +328,29 @@ local function printClassName(tooltip, class_name)
 end
 
 -- Search function for BIS lists
-function searchIDInBislistsClassSpec(structure, id, class, spec)
+-- Now respects blocked phase - only shows items from phases up to and including blocked phase
+function searchIDInBislistsClassSpec(structure, id, class, spec, filterByBlockedPhase)
     local paths = {}
     local seen = {}
+    
+    -- Get blocked phase from saved variables
+    local blockedPhase = nil
+    local blockedPhaseIndex = nil
+    if filterByBlockedPhase and BistooltipAddon and BistooltipAddon.db and BistooltipAddon.db.char then
+        blockedPhase = BistooltipAddon.db.char.blocked_phase
+        blockedPhaseIndex = BistooltipAddon.db.char.blocked_phase_index
+    end
 
     -- Sort phases according to Bistooltip_wowtbc_phases order
     local sortedPhases = {}
     if Bistooltip_wowtbc_phases then
-        for _, phase in ipairs(Bistooltip_wowtbc_phases) do
+        for phaseIdx, phase in ipairs(Bistooltip_wowtbc_phases) do
+            -- If phase is blocked, only include phases up to and including blocked phase
+            if blockedPhaseIndex then
+                if phaseIdx > blockedPhaseIndex then
+                    break  -- Skip phases after blocked phase
+                end
+            end
             if structure and structure[class] and structure[class][spec] and structure[class][spec][phase] then
                 table.insert(sortedPhases, phase)
             end
@@ -604,6 +614,12 @@ local function OnGameTooltipSetItem(tooltip)
     if not Bistooltip_bislists or not Bistooltip_spec_icons then
         return
     end
+    
+    -- Check tooltip_with_ctrl option - if enabled, only show BIS info when CTRL is held
+    local tooltipWithCtrl = BistooltipAddon and BistooltipAddon.db and BistooltipAddon.db.char and BistooltipAddon.db.char.tooltip_with_ctrl
+    if tooltipWithCtrl and not ctrlDown then
+        return  -- Don't show BIS info unless CTRL is held
+    end
 
     -- Your specialization section (only for rare+ equippable items)
     local showSpec = false
@@ -621,23 +637,60 @@ local function OnGameTooltipSetItem(tooltip)
         end
     end
 
+    -- Store player class/spec for later filtering
+    local playerClass, playerSpec = nil, nil
+    
     if showSpec then
         local pClass, pSpec = GetPlayerClassSpecKeys()
+        playerClass, playerSpec = pClass, pSpec  -- Save for later
+        
         if pClass and pSpec then
             tooltip:AddLine(" ", 1, 1, 0)
-            tooltip:AddLine("Your specialization:", 1, 1, 1)
+            tooltip:AddLine("Your Class:", 1, 1, 1)
 
-            local foundPhases = searchIDInBislistsClassSpec(Bistooltip_bislists, itemId, pClass, pSpec)
-            local icon = GetSpecIcon(pClass, pSpec)
-            local left = (icon and string.format("|T%s:16|t ", icon) or "")
-                .. ColorizeByClass(pClass, pClass)
-                .. " - "
-                .. ColorizeByClass(pClass, tostring(pSpec))
+            local foundPhases = searchIDInBislistsClassSpec(Bistooltip_bislists, itemId, pClass, pSpec, true)
+            local icon = Utils.GetSpecIcon(pClass, pSpec)
+            
+            -- Build spec text with optional highlighting
+            local specText = ColorizeByClass(pClass, pClass) .. " - " .. ColorizeByClass(pClass, tostring(pSpec))
+            
+            -- Check if player's spec is highlighted
+            local isPlayerSpecHighlighted = specHighlighted(pClass, pSpec)
+            if isPlayerSpecHighlighted then
+                specText = "|cff00ff00>>|r " .. specText .. " |cff00ff00<<|r"
+            end
+            
+            local left = (icon and string.format("|T%s:16|t ", icon) or "") .. specText
 
             if foundPhases then
                 local rank = NormalizeDualSlotRank(itemId, pClass, pSpec, ParseBestRankFromPhases(foundPhases))
                 tooltip:AddDoubleLine(left, RankTagForSelf(rank), 1, 1, 1, 1, 1, 1)
-                tooltip:AddDoubleLine("Where:", tostring(FormatPhasesString(itemId, pClass, pSpec, foundPhases)), 1, 1, 1, 1, 1, 0)
+                
+                -- Check if we should hide Rank: line
+                -- Hide if: BIS until last phase OR BIS with Lock enabled
+                local hideRankLine = false
+                local blockedPhase = BistooltipAddon.db and BistooltipAddon.db.char and BistooltipAddon.db.char.blocked_phase
+                
+                -- Check if it's BIS in the last phase (T10 or RS, or blocked phase if locked)
+                local lastPhase = blockedPhase or "T10"  -- If locked, use blocked phase as "last"
+                local isBisInLastPhase = foundPhases:find(lastPhase .. " BIS") ~= nil
+                
+                -- If it's purely BIS (no ALT phases), check if it spans to last phase
+                local hasAltPhases = foundPhases:find("alt") ~= nil
+                if not hasAltPhases and rank and rank.kind == "BIS" then
+                    -- It's BIS - check if it goes until the last available phase
+                    if blockedPhase then
+                        -- Locked mode - hide if BIS
+                        hideRankLine = true
+                    elseif isBisInLastPhase then
+                        -- BIS until last phase - hide
+                        hideRankLine = true
+                    end
+                end
+                
+                if not hideRankLine then
+                    tooltip:AddDoubleLine("Rank:", tostring(FormatPhasesString(itemId, pClass, pSpec, foundPhases)), 1, 1, 1, 1, 1, 0)
+                end
             else
                 tooltip:AddDoubleLine(left, "|cffff3b3bNO BIS|r", 1, 1, 1, 1, 1, 1)
             end
@@ -645,7 +698,7 @@ local function OnGameTooltipSetItem(tooltip)
         end
     end
 
-    -- Collect all matching entries
+    -- Collect all matching entries (apply spec filtering here)
     local anyFound = false
     local entries = {}
     local classOrder = _G.Bistooltip_classes_indexes or {}
@@ -653,31 +706,41 @@ local function OnGameTooltipSetItem(tooltip)
     for class, specs in CaseInsensitivePairs(Bistooltip_spec_icons) do
         for spec, icon in pairs(specs) do
             if spec ~= "classIcon" then
-                local foundPhases = searchIDInBislistsClassSpec(Bistooltip_bislists, itemId, class, spec)
-                if foundPhases then
-                    anyFound = true
-                    local rank = ParseBestRankFromPhases(foundPhases)
-                    local bisCount, bestAlt, earliestBisW, earliestAnyW, bestPhase = ParsePhaseStatsFromString(foundPhases)
+                -- Skip player's own spec (already shown in "Your specialization")
+                local isPlayerSpec = (class == playerClass and spec == playerSpec)
+                
+                -- Apply spec filtering - skip filtered specs AND player's spec
+                if not specFiltered(class, spec) and not isPlayerSpec then
+                    local foundPhases = searchIDInBislistsClassSpec(Bistooltip_bislists, itemId, class, spec, true)
+                    if foundPhases then
+                        anyFound = true
+                        local rank = ParseBestRankFromPhases(foundPhases)
+                        local bisCount, bestAlt, earliestBisW, earliestAnyW, bestPhase = ParsePhaseStatsFromString(foundPhases)
+                        
+                        -- Check if this spec is highlighted
+                        local isHighlighted = specHighlighted(class, spec)
 
-                    table.insert(entries, {
-                        class = class,
-                        spec = spec,
-                        icon = icon,
-                        phases = foundPhases,
-                        rank = rank,
-                        bisCount = bisCount,
-                        bestAlt = bestAlt,
-                        earliestBisW = earliestBisW,
-                        earliestAnyW = earliestAnyW,
-                        bestPhase = bestPhase,
-                        classIdx = tonumber(classOrder[class]) or 999,
-                    })
+                        table.insert(entries, {
+                            class = class,
+                            spec = spec,
+                            icon = icon,
+                            phases = foundPhases,
+                            rank = rank,
+                            bisCount = bisCount,
+                            bestAlt = bestAlt,
+                            earliestBisW = earliestBisW,
+                            earliestAnyW = earliestAnyW,
+                            bestPhase = bestPhase,
+                            classIdx = tonumber(classOrder[class]) or 999,
+                            isHighlighted = isHighlighted,
+                        })
+                    end
                 end
             end
         end
     end
 
-    -- Helper: rank allowlist for CTRL focus mode
+    -- Helper: rank allowlist for CTRL focus mode (only when tooltip_with_ctrl is OFF)
     local function isFocusRank(r)
         if not r then return false end
         if r.kind == "BIS" or r.kind == "BIS2" then return true end
@@ -688,10 +751,7 @@ local function OnGameTooltipSetItem(tooltip)
         return false
     end
 
-    -- Always show the hint line once we have any results
-    if anyFound then
-        tooltip:AddLine("|cffaaaaaaHold SHIFT for summary · Hold CTRL for focus|r")
-    end
+    -- Hint line removed per user request
 
     -- SHIFT summary (compact)
     if shiftMode and #entries > 0 then
@@ -771,8 +831,8 @@ local function OnGameTooltipSetItem(tooltip)
         return true
     end
 
-    -- Default view: full list (sorted) / CTRL focus view (filtered)
-    local focusMode = (not shiftMode) and ctrlDown
+    -- Default view: full list (sorted) / CTRL focus view (filtered, only when tooltip_with_ctrl is OFF)
+    local focusMode = (not shiftMode) and ctrlDown and not tooltipWithCtrl
 
     -- Rank ordering: BIS > BIS2 > ALT1 > ALT2 ... > NO BIS
     local function RankWeight(r)
@@ -816,7 +876,14 @@ local function OnGameTooltipSetItem(tooltip)
     end
 
     -- Sort classes by best rank, then by earliest phase, then by natural class order
+    -- Also prioritize classes with highlighted specs
     table.sort(classes, function(a, b)
+        -- Check if any entry is highlighted
+        local aHighlighted, bHighlighted = false, false
+        for _, e in ipairs(a.entries) do if e.isHighlighted then aHighlighted = true break end end
+        for _, e in ipairs(b.entries) do if e.isHighlighted then bHighlighted = true break end end
+        if aHighlighted ~= bHighlighted then return aHighlighted end
+        
         if a.bestW ~= b.bestW then return a.bestW < b.bestW end
         if a.bestPhaseW ~= b.bestPhaseW then return a.bestPhaseW < b.bestPhaseW end
         if a.classIdx ~= b.classIdx then return a.classIdx < b.classIdx end
@@ -824,7 +891,9 @@ local function OnGameTooltipSetItem(tooltip)
     end)
 
     -- Sort specs inside each class by rank, then phase, then name
+    -- Highlighted specs come first
     local function specSort(a, b)
+        if a.isHighlighted ~= b.isHighlighted then return a.isHighlighted end
         local wa, wb = RankWeight(a._normRank), RankWeight(b._normRank)
         if wa ~= wb then return wa < wb end
         local pa, pb = GetPhaseWeight(a.bestPhase), GetPhaseWeight(b.bestPhase)
@@ -838,50 +907,44 @@ local function OnGameTooltipSetItem(tooltip)
     if focusMode and #classes > 0 then
         tooltip:AddLine("|cffaaaaaaFocus mode: BIS / BIS² / ALT1 / ALT2|r")
     end
+    
+    -- Check if class names should be hidden
+    local hideClassNames = classNamesFiltered()
 
     for i = 1, #classes do
         local b = classes[i]
-        tooltip:AddLine(ColorizeByClass(b.class, b.class))
+        -- Only show class name if not filtered
+        if not hideClassNames then
+            tooltip:AddLine(ColorizeByClass(b.class, b.class))
+        end
         for j = 1, #b.entries do
             local e = b.entries[j]
             local iconString = e.icon and string.format("|T%s:14|t ", e.icon) or ""
-            local leftText = "   " .. iconString .. ColorizeByClass(b.class, e.spec)
+            -- If class names hidden, no indent; otherwise indent
+            local indent = hideClassNames and "" or "   "
+            local specText = ColorizeByClass(b.class, e.spec)
+            -- Highlight spec with special formatting if it's highlighted
+            if e.isHighlighted then
+                specText = "|cff00ff00>>|r " .. specText .. " |cff00ff00<<|r"
+            end
+            local leftText = indent .. iconString .. specText
             tooltip:AddDoubleLine(leftText, FormatPhasesString(itemId, e.class, e.spec, e.phases), 1, 1, 1, 1, 1, 0)
         end
     end
 
-    -- Owned info
-    local bags, equipped = GetOwnedInfo(itemId)
-    if (bags > 0) or (equipped > 0) then
-        tooltip:AddLine(" ", 1, 1, 0)
-        if equipped > 0 then
-            tooltip:AddLine("You have this item equipped", 0.074, 0.964, 0.129)
-        else
-            if bags > 1 then
-                tooltip:AddLine("You have this item in your bags (x" .. bags .. ")", 0.074, 0.964, 0.129)
-            else
-                tooltip:AddLine("You have this item in your bags", 0.074, 0.964, 0.129)
-            end
-        end
-    else
-        if anyFound and not getDataStoreInventory() and not BistooltipAddon._noDSNoteShown then
-            BistooltipAddon._noDSNoteShown = true
-            tooltip:AddLine(" ", 1, 1, 0)
-            tooltip:AddLine("Bis-Tooltip is running without DataStore: bank items won't be shown.", 0.6, 0.6, 0.6)
-        end
-    end
+    -- Item source (controlled by show_item_source setting)
+    if BistooltipAddon.db.char.show_item_source then
+        local sources = GetAllItemSources(itemId)
+        local sourceLines = FormatSourcesForTooltip(sources)
 
-    -- Item source - NOW SUPPORTS MULTIPLE SOURCES
-    local sources = GetAllItemSources(itemId)
-    local sourceLines = FormatSourcesForTooltip(sources)
-    
-    if sourceLines and #sourceLines > 0 then
-        tooltip:AddLine(" ", 1, 1, 0)
-        tooltip:AddLine("|cFFFFFFFFSource:|r", 1, 1, 1)
-        for _, line in ipairs(sourceLines) do
-            tooltip:AddLine("  " .. line, 1, 1, 1)
+        if sourceLines and #sourceLines > 0 then
+            tooltip:AddLine(" ", 1, 1, 0)
+            tooltip:AddLine("|cFFFFFFFFSource:|r", 1, 1, 1)
+            for _, line in ipairs(sourceLines) do
+                tooltip:AddLine("  " .. line, 1, 1, 1)
+            end
+            tooltip:AddLine(" ", 1, 1, 0)
         end
-        tooltip:AddLine(" ", 1, 1, 0)
     end
 end
 
@@ -905,4 +968,10 @@ function BistooltipAddon:initBisTooltip()
 
     GameTooltip:HookScript("OnTooltipSetItem", OnGameTooltipSetItem)
     ItemRefTooltip:HookScript("OnTooltipSetItem", OnGameTooltipSetItem)
+end
+
+-- Cleanup function for addon disable (prevents memory leaks)
+function BistooltipAddon:cleanupBisTooltip()
+    eventFrame:UnregisterEvent("MODIFIER_STATE_CHANGED")
+    eventFrame:SetScript("OnEvent", nil)
 end

@@ -163,7 +163,7 @@ end
 function BistooltipUtils.TruncateText(s, maxlen)
     s = s and tostring(s) or ""
     if maxlen and maxlen > 3 and #s > maxlen then
-        return string.sub(s, 1, maxlen - 1) .. "…"
+        return string.sub(s, 1, maxlen - 1) .. ".."
     end
     return s
 end
@@ -224,6 +224,16 @@ function BistooltipUtils.NormalizeItemID(original_item_id)
         return _G.Bistooltip_horde_to_ali[original_item_id]
     end
     return original_item_id
+end
+
+-- ============================================================
+-- Tooltip Utilities
+-- ============================================================
+
+-- Set tooltip content by item ID (centralized helper)
+function BistooltipUtils.TooltipSetItemByID(tooltip, itemId)
+    if not tooltip or not itemId or itemId <= 0 then return end
+    tooltip:SetHyperlink("item:" .. itemId .. ":0:0:0:0:0:0:0")
 end
 
 -- ============================================================

@@ -1,75 +1,100 @@
 # BisTooltip Changelog
 
-This changelog describes the **3.3.5a backport** and the main differences compared to the original BiS-Tooltip.
-
-## Version 1.2.0-3.3.5a
-
-### New Features
-
-- **Ascension 5M emblem vendor support (Emblem of Ascension)**
-  - Emblem items are shown as an additional source.
-  - Checklist can group items by emblem cost and show section totals + a grand total.
-  - Includes support for server custom items (including newly added legendary weapons).
-
-- **BOE information in tooltip**
-  - Items that are *Bind on Equip* are clearly labeled.
-
-- **Improved multi-source display**
-  - If an item is available from multiple sources (e.g., raid drop + emblem vendor), the addon can show both.
-
-### Improvements
-
-- **Checklist readability**
-  - Gem suggestions are displayed as stat abbreviations instead of long names.
-  - Enchant suggestions can be displayed per slot.
-
-- **Stability & UI cleanup**
-  - Better cleanup of frame decorations and overlays to avoid leftover highlights after closing/reopening panels.
-
-### Performance
-
-- Faster source lookups via caching.
-- Reduced redundant tooltip recomputation during rapid updates.
-
----
-
-## Version 1.1.0-3.3.5a
+## Version 1.3.8-3.3.5a
 
 ### Bug Fixes
 
-- **Fixed Config.lua dropdown bug**
-  - The `data_source` select widget was using incorrect callback signatures.
+1. **Checkmark Color Stability Fixed**
+   - `clearCheckMarks()` now properly hides textures with `Hide()`
+   - Colors reset to white (1,1,1,1) before clearing
+   - Prevents color bleeding when clicking UI elements
 
-- **Removed global table pollution**
-  - Replaced global `table.contains` with `BistooltipUtils.TableContains`.
+2. **Removed Blue Border from Gem Box**
+   - Gem plan row has no backdrop (completely transparent)
 
-- **Added nil checks for spec icons**
-  - Prevented edge-case nil errors when icon tables were missing.
+3. **Discord Link Dialog Fixed**
+   - Single "OK" button with copy hint
 
-- **Fixed TOC metadata**
-  - Consolidated duplicate Author fields.
+4. **Slot Separators in All Modes**
+   - Solid line separator `_____` now visible in standard mode
+   - Color: medium gray (#555555)
+   - Works in: Standard, BIS Checklist, and Customize modes
 
-### Performance Improvements
+5. **Gem Condensing in Standard Mode**
+   - Duplicate gems now show as "2x" or "3x" instead of repeating
+   - Example: 3 identical gems → single icon with "3x" label
+   - Only applies to standard mode (BIS Checklist shows all gems)
 
-- Tooltip computation caching (short TTL).
-- Source lookup caching.
-- Basic cooldown/throttling to prevent excessive tooltip refresh work.
+6. **Spec Highlight for Your Specialization**
+   - When Spec Highlight is enabled for player's own spec
+   - "Your specialization" section now shows `>>` markers
+   - Format: `>> Warrior - Protection <<`
 
-### New Features
+---
 
-- Expanded slash commands:
-  - `/bistooltip` or `/bis` — toggle BiS window
-  - `/bistooltip config` or `/bis c` — open settings
-  - `/bistooltip reload` or `/bis r` — reload data
-  - `/bistooltip help` — show help
+## New Features Since Lock Phase (v1.3.0)
 
-- Gem stat abbreviations in checklist.
-- Instance difficulty tags on boss sources where available.
-- Enchant display in checklist.
-- Multi-source support (raid boss + emblem vendor).
+### 1. Lock Phase System (v1.3.0)
+- **Checkbox "Lock"** next to phase dropdown
+- When locked, phase dropdown is disabled
+- **Tooltips filter**: Only show BIS info for locked phase and earlier
 
-### Code Quality
+### 2. Customize Mode (v1.3.0)
+- **Checkbox "Customize"** in dropdown row
+- Only available in standard view
+- Allows reordering item priorities per slot
 
-- Added `Utils.lua` (shared helpers) and `Constants.lua` (central configuration).
-- Introduced module-level state organization in `Bislist.lua`.
-- Improved error handling and code organization.
+### 3. Slot Locking Icons (v1.3.0)
+- **[O]** = unlocked (green), **[X]** = locked (default)
+- Click to toggle unlock state
+- **[L]** header to toggle all slots
+
+### 4. Click-to-Swap Item Reordering (v1.3.1)
+- Click first item → red border appears
+- Click second item → positions swap
+- Right-click → cancel selection
+
+### 5. Reset Button "R" (v1.3.1)
+- Resets all custom priorities for current class/spec/phase
+- Restores original item order
+
+### 6. Custom Priority Integration (v1.3.5)
+- Custom item order reflects in tooltips
+- Item at position 1 shows as "BIS"
+- Progress bar counts custom BIS items
+
+### 7. Progress Bar Improvements (v1.3.4-1.3.7)
+- Counts ALL slots
+- Proper Horde↔Alliance ID lookup
+- Color changes based on progress %
+
+### 8. Phase Combining (v1.3.7)
+- "PR BIS / T7 BIS" → "BIS PR-T7"
+- All BIS text in green color
+
+### 9. Tooltip Enhancements (v1.3.7)
+- "Where:" changed to "Rank:"
+- Rank: hidden when BIS until last phase
+- Player's spec hidden from main list
+
+### 10. UI Polish (v1.3.7-1.3.8)
+- Bright green checkmarks (0, 1, 0)
+- Gem stat width reduced for better fit
+- Slot separators in all modes
+- Gem condensing (2x, 3x notation)
+- Spec Highlight works for player's spec
+
+---
+
+## Version History
+
+| Version | Key Changes |
+|---------|-------------|
+| 1.3.0 | Lock Phase, Customize Mode, Slot Locking |
+| 1.3.1 | Click-to-Swap, Reset Button |
+| 1.3.2 | Tooltip options, Lock Phase filtering |
+| 1.3.4 | Progress bar counting |
+| 1.3.5 | Custom priority system |
+| 1.3.6 | Reset functionality, BIS green color |
+| 1.3.7 | Phase combining, Rank: label, credits |
+| 1.3.8 | Color fix, separators, gem condensing, spec highlight |

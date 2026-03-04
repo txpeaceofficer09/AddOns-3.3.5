@@ -9,7 +9,7 @@
 				InterfaceOptions_AddCategory(self);
 			</OnLoad>
 			<OnShow>
-				local f = getglobal ("Atr_BasicOptionsFrame");
+				local f = _G["Atr_BasicOptionsFrame"];
 				if (f) then
 					InterfaceOptionsFrame_OpenToCategory (f)
 					self:Hide();
@@ -152,21 +152,21 @@
 					<CheckButton name="Atr_RB_S" inherits="UIRadioButtonTemplate">
 						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="20" y="0"/></Offset></Anchor></Anchors>
 						<Scripts>
-							<OnLoad> getglobal(self:GetName().."Text"):SetFormattedText(FORMATED_HOURS, 12); </OnLoad>
+							<OnLoad> _G[self:GetName().."Text"]:SetFormattedText(FORMATED_HOURS, 12); </OnLoad>
 							<OnClick> Atr_SetDurationOptionRB (self:GetName()); </OnClick>
 						</Scripts>
 					</CheckButton>
 					<CheckButton name="Atr_RB_M" inherits="UIRadioButtonTemplate">
 						<Anchors><Anchor point="LEFT" relativeTo="Atr_RB_SText" relativePoint="RIGHT"><Offset><AbsDimension x="20" y="0"/></Offset></Anchor></Anchors>
 						<Scripts>
-							<OnLoad> getglobal(self:GetName().."Text"):SetFormattedText(FORMATED_HOURS, 24); </OnLoad>
+							<OnLoad> _G[self:GetName().."Text"]:SetFormattedText(FORMATED_HOURS, 24); </OnLoad>
 							<OnClick> Atr_SetDurationOptionRB (self:GetName()); </OnClick>
 						</Scripts>
 					</CheckButton>
 					<CheckButton name="Atr_RB_L" inherits="UIRadioButtonTemplate">
 						<Anchors><Anchor point="LEFT" relativeTo="Atr_RB_MText" relativePoint="RIGHT"><Offset><AbsDimension x="20" y="0"/></Offset></Anchor></Anchors>
 						<Scripts>
-							<OnLoad> getglobal(self:GetName().."Text"):SetFormattedText(FORMATED_HOURS, 48); </OnLoad>
+							<OnLoad> _G[self:GetName().."Text"]:SetFormattedText(FORMATED_HOURS, 48); </OnLoad>
 							<OnClick> Atr_SetDurationOptionRB (self:GetName()); </OnClick>
 						</Scripts>
 					</CheckButton>

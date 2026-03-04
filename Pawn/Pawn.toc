@@ -1,13 +1,16 @@
 ## Interface: 30300
 ## Title: Pawn
-## Version: 1.1.2
-## Notes: Pawn performs item value assessments to make it easier to decide which items are better than others.
-## OptionalDependencies: AtlasLoot, EQCompare, EquipCompare, MultiTips
-## SavedVariablesPerCharacter: PawnOptions
+## Version: 1.3.8
+## Notes: Pawn calculates scores for items that let you easily see which one is better for you.
+## OptionalDependencies: AtlasLoot, EQCompare, EquipCompare, MultiTips, Outfitter
+## SavedVariables: PawnCommon
+## SavedVariablesPerCharacter: PawnOptions, PawnWowheadScaleProviderOptions
 
 VgerCore\VgerCore.lua
 
 Localization.lua
+Gems.lua
 Pawn.lua
 PawnUI.lua
 PawnUI.xml
+Wowhead.lua

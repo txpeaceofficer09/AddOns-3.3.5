@@ -1,9 +1,9 @@
 ﻿-- VgerCore  by Vger-Azjol-Nerub
 -- www.vgermods.com
--- © 2006-2008 Green Eclipse.  This mod is released under the Creative Commons Attribution-NonCommercial-NoDerivs 3.0 license.
+-- © 2006-2010 Green Eclipse.  This mod is released under the Creative Commons Attribution-NonCommercial-NoDerivs 3.0 license.
 -- 
--- Version 1.0.2: Conversion to RGB from hex and vice-versa
-local VgerCoreThisVersion = 1.02;
+-- Version 1.0.5: minor performance enhancements
+local VgerCoreThisVersion = 1.05
 -- 
 -- VgerCore contains functionality that is shared by Vger's mods.
 -- It can be used as a standalone add-on, or embedded within other mods.
@@ -184,10 +184,11 @@ end
 -- Executes a chat command just as if it were typed in the chat window.
 -- Returns true if successful, or false if not (primarily if the command is a secure function, such as /cast).
 function VgerCore.ExecuteChatCommand(Command)
-	if not ChatFrameEditBox then return false end
+	local EditBox = DEFAULT_CHAT_FRAME.editBox
+	if not EditBox then return false end
 	
 	-- First, make sure that this command is okay.
-	local _, _, SlashCommand = string.find(Command, "^(/%w+) ")
+	local _, _, SlashCommand = strfind(Command, "^(/%w+) ")
 	if SlashCommand then
 		if IsSecureCmd(SlashCommand) then
 			VgerCore.Fail(SlashCommand .. " is a secure command and cannot be run automatically.")
@@ -196,10 +197,10 @@ function VgerCore.ExecuteChatCommand(Command)
 	end
 
 	-- Now, execute the chat command.
-	local PreviousText = ChatFrameEditBox:GetText()
-	ChatFrameEditBox:SetText(Command)
-	ChatEdit_SendText(ChatFrameEditBox)
-	ChatFrameEditBox:SetText(PreviousText)
+	local PreviousText = EditBox:GetText()
+	EditBox:SetText(Command)
+	ChatEdit_SendText(EditBox)
+	EditBox:SetText(PreviousText)
 	return true
 end
 
@@ -213,7 +214,7 @@ function VgerCore.RunMacro(MacroName)
 	-- Then, execute each line individually.  Ignore comments marked with # or -.
 	local Line
 	for Line in string.gmatch(Script, "[^\n]+") do
-		local FirstChar = string.sub(Line, 1, 1)
+		local FirstChar = strsub(Line, 1, 1)
 		if FirstChar ~= "#" and FirstChar ~= "-" then
 			VgerCore.ExecuteChatCommand(Line)
 		end
@@ -232,7 +233,7 @@ end
 
 -- Comparer function for use in table.sort that sorts strings alphabetically, ignoring case.
 function VgerCore.CaseInsensitiveComparer(a, b)
-	return string.lower(a) < string.lower(b)
+	return strlower(a) < strlower(b)
 end
 
 -- Returns a six-digit hex string for three RGB values 0-1.
@@ -240,15 +241,28 @@ function VgerCore.RGBToHex(r, g, b)
 	r = r <= 1 and r >= 0 and r or 0
 	g = g <= 1 and g >= 0 and g or 0
 	b = b <= 1 and b >= 0 and b or 0
-	return string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
+	return format("%02x%02x%02x", r * 255, g * 255, b * 255)
 end
 
 -- Returns RGB values 0-1 for a six-digit hex string, or nil if unsuccessful.
 function VgerCore.HexToRGB(hex)
-	if not hex or string.len(hex) ~= 6 then return end
-	local r, g, b = string.sub(hex, 1, 2), string.sub(hex, 3, 4), string.sub(hex, 5, 6)
+	if not hex or strlen(hex) ~= 6 then return end
+	local r, g, b = strsub(hex, 1, 2), strsub(hex, 3, 4), strsub(hex, 5, 6)
 	r, g, b = r or 0, g or 0, b or 0
 	return tonumber(r, 16) / 255, tonumber(g, 16) / 255, tonumber(b, 16) / 255
+end
+
+-- Same as strfind, but finds the last occurrence of a substring.  The substring to find must be
+-- a single character.
+function VgerCore.StringFindReverse(str, find)
+	VgerCore.Assert(strlen(find) == 1, "The substring to find must be a single character.")
+	local FindByte = strbyte(find)
+	local StringLength = strlen(str)
+	local i
+	for i = StringLength, 1, -1 do
+		if strbyte(str, i) == FindByte then return i end
+	end
+	return nil
 end
 
 end -- if InitializeOrUpgrade

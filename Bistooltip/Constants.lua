@@ -9,20 +9,17 @@ BistooltipConstants = BistooltipConstants or {}
 -- ============================================================
 
 BistooltipConstants.UI = {
-    -- Main frame (increased for BIS Checklist mode)
-    MAIN_FRAME_WIDTH = 720,
+    -- Main frame (compact width for better space usage)
+    MAIN_FRAME_WIDTH = 600,
     MAIN_FRAME_HEIGHT = 700,
-    MAIN_FRAME_MIN_WIDTH = 600,
+    MAIN_FRAME_MIN_WIDTH = 550,
     MAIN_FRAME_MIN_HEIGHT = 500,
-    MAIN_FRAME_MAX_WIDTH = 1200,
+    MAIN_FRAME_MAX_WIDTH = 1000,
     MAIN_FRAME_MAX_HEIGHT = 900,
     
     -- Spec frame (item list)
     SPEC_FRAME_HEIGHT = 420,
-    
-    -- Checklist panel
-    CHECKLIST_PANEL_WIDTH = 380,
-    
+
     -- Icons (original sizes)
     ICON_SIZE_TINY = 12,
     ICON_SIZE_SMALL = 14,
@@ -47,7 +44,16 @@ BistooltipConstants.UI = {
     
     -- Checkbox
     CHECKBOX_WIDTH = 110,
-    
+
+    -- Tab system (Phase 4)
+    TAB_HEIGHT = 28,
+    TAB_WIDTH = 120,
+    TAB_SPACING = 2,
+
+    -- Pill buttons
+    PILL_WIDTH = 70,
+    PILL_HEIGHT = 24,
+
     -- Plan column (for checklist mode)
     PLAN_COLUMN_WIDTH = 180,
     ITEM_NAME_MAX_CHARS = 28,
@@ -78,12 +84,21 @@ BistooltipConstants.COLORS = {
     ALT = "ffa500",         -- Orange
     NO_BIS = "ff3b3b",      -- Red
     FOUND = "ffff00",       -- Yellow
-    
+
     -- UI colors
     HEADER = "ffd100",      -- Gold
     SUBHEADER = "ffffff",   -- White
     HINT = "aaaaaa",        -- Gray
     DISABLED = "666666",    -- Dark gray
+
+    -- New UI Theme colors (Phase 4)
+    TAB_ACTIVE = "3399ff",      -- Blue highlight for active tab
+    TAB_INACTIVE = "666666",    -- Gray for inactive tabs
+    TAB_HOVER = "4da6ff",       -- Lighter blue on hover
+    PILL_ACTIVE = "3399ff",     -- Blue for active pill button
+    PILL_INACTIVE = "444444",   -- Dark for inactive pill
+    ROW_BORDER = "333333",      -- Subtle row separator
+    GLASS_BG = "1a1a1a",        -- Dark glass background
     
     -- Item quality colors (fallbacks)
     QUALITY_POOR = "9d9d9d",
@@ -172,31 +187,50 @@ BistooltipConstants.SPEC_BY_CLASSFILE_TAB = {
 
 BistooltipConstants.SPEC_TABLE_DEFAULT = {
     columns = {
-        { weight = 45 },  -- Slot name
-        { width = 50 },   -- Enhancements
-        { width = 60 },   -- Top 1
-        { width = 60 },   -- Top 2
-        { width = 48 },   -- Top 3
-        { width = 48 },   -- Top 4
-        { width = 48 },   -- Top 5
-        { width = 48 },   -- Top 6
+        { width = 60 },   -- Slot name
+        { width = 24 },   -- Enchant icon
+        { width = 75 },   -- Gem icons (up to 4)
+        { width = 52 },   -- BIS
+        { width = 52 },   -- Top 2
+        { width = 46 },   -- Top 3
+        { width = 46 },   -- Top 4
+        { width = 46 },   -- Top 5
+        { width = 46 },   -- Top 6
     },
-    space = 2,
+    space = 4,
     align = "middle",
 }
 
 BistooltipConstants.SPEC_TABLE_CHECKLIST = {
     columns = {
-        { width = 90 },   -- Slot (wider for visibility)
-        { weight = 55 },  -- Plan (Boss/Item/Enchant) - takes more space
-        { width = 60 },   -- BIS
-        { width = 60 },   -- BIS2
-        { width = 48 },   -- Alt 3
-        { width = 48 },   -- Alt 4
-        { width = 48 },   -- Alt 5
-        { width = 48 },   -- Alt 6
+        { width = 75 },   -- Slot
+        { weight = 70 },  -- Plan (Boss/Item/Enchant/Gems)
+        { width = 52 },   -- BIS
+        { width = 52 },   -- BIS2
+        { width = 46 },   -- Alt 3
+        { width = 46 },   -- Alt 4
+        { width = 46 },   -- Alt 5
+        { width = 46 },   -- Alt 6
     },
-    space = 2,
+    space = 4,
+    align = "middle",
+}
+
+-- Customize mode with extra column for lock icons
+BistooltipConstants.SPEC_TABLE_CUSTOMIZE = {
+    columns = {
+        { width = 60 },   -- Slot
+        { width = 24 },   -- Enchant
+        { width = 75 },   -- Gems
+        { width = 50 },   -- BIS
+        { width = 50 },   -- BIS2
+        { width = 44 },   -- Alt 3
+        { width = 44 },   -- Alt 4
+        { width = 44 },   -- Alt 5
+        { width = 44 },   -- Alt 6
+        { width = 32 },   -- Lock icon
+    },
+    space = 4,
     align = "middle",
 }
 
@@ -512,7 +546,17 @@ function BistooltipConstants.GetTierNumber(phase)
     return 999
 end
 
--- Combine consecutive BIS phases: "T7 BIS / T8 BIS / T9 BIS" -> "BIS T7-T9"
+-- Get phase index from Bistooltip_wowtbc_phases (for consecutive detection)
+function BistooltipConstants.GetPhaseIndex(phase)
+    if not phase then return 999 end
+    local p = BistooltipConstants.NormalizePhase(phase)
+    
+    -- Use actual phase order: PR, T7, T8, T9, T10, RS
+    local phaseOrder = { PR = 1, T7 = 2, T8 = 3, T9 = 4, T10 = 5, RS = 6 }
+    return phaseOrder[p] or 999
+end
+
+-- Combine consecutive BIS phases: "PR BIS / T7 BIS / T8 BIS" -> "BIS PR-T8"
 function BistooltipConstants.CombineBISPhases(phasesText)
     if not phasesText or phasesText == "" then return phasesText end
     
@@ -537,12 +581,12 @@ function BistooltipConstants.CombineBISPhases(phasesText)
         end
     end
     
-    -- Sort phases by tier number
-    local function sortByTier(a, b)
-        return BistooltipConstants.GetTierNumber(a) < BistooltipConstants.GetTierNumber(b)
+    -- Sort phases by phase index (actual order: PR, T7, T8, T9, T10, RS)
+    local function sortByPhaseIndex(a, b)
+        return BistooltipConstants.GetPhaseIndex(a) < BistooltipConstants.GetPhaseIndex(b)
     end
     
-    table.sort(bisPhases, sortByTier)
+    table.sort(bisPhases, sortByPhaseIndex)
     
     -- Build combined string
     local parts = {}
@@ -550,18 +594,19 @@ function BistooltipConstants.CombineBISPhases(phasesText)
     -- Combine BIS phases
     if #bisPhases > 0 then
         if #bisPhases == 1 then
-            table.insert(parts, bisPhases[1] .. " BIS")
+            -- Single BIS phase - add green color
+            table.insert(parts, "|cff00ff00" .. bisPhases[1] .. " BIS|r")
         elseif #bisPhases >= 2 then
-            -- Check if consecutive
+            -- Check if consecutive using phase index (PR=1, T7=2, T8=3, etc)
             local first = bisPhases[1]
             local last = bisPhases[#bisPhases]
             local isConsecutive = true
             
             for i = 2, #bisPhases do
-                local prevTier = BistooltipConstants.GetTierNumber(bisPhases[i-1])
-                local currTier = BistooltipConstants.GetTierNumber(bisPhases[i])
-                -- Allow gaps of up to 1 tier (T7->T8, T8->T9, etc)
-                if currTier - prevTier > 1.5 then
+                local prevIdx = BistooltipConstants.GetPhaseIndex(bisPhases[i-1])
+                local currIdx = BistooltipConstants.GetPhaseIndex(bisPhases[i])
+                -- Consecutive means index difference of exactly 1
+                if currIdx - prevIdx ~= 1 then
                     isConsecutive = false
                     break
                 end
@@ -570,9 +615,9 @@ function BistooltipConstants.CombineBISPhases(phasesText)
             if isConsecutive and #bisPhases >= 2 then
                 table.insert(parts, "|cff00ff00BIS " .. first .. "-" .. last .. "|r")
             else
-                -- Not consecutive, list individually
+                -- Not consecutive, list individually with green color
                 for _, p in ipairs(bisPhases) do
-                    table.insert(parts, p .. " BIS")
+                    table.insert(parts, "|cff00ff00" .. p .. " BIS|r")
                 end
             end
         end
@@ -585,7 +630,7 @@ function BistooltipConstants.CombineBISPhases(phasesText)
     
     for _, n in ipairs(altNums) do
         local phases = altPhases[n]
-        table.sort(phases, sortByTier)
+        table.sort(phases, sortByPhaseIndex)
         
         if #phases == 1 then
             table.insert(parts, phases[1] .. " alt " .. n)
