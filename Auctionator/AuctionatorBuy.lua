@@ -6,8 +6,9 @@ local zc = addonTable.zc;
 local ATR_BUY_NULL						= 0;
 local ATR_BUY_QUERY_SENT				= 1;
 local ATR_BUY_JUST_BOUGHT				= 2;
-local ATR_BUY_PROCESSING_QUERY_RESULTS	= 3;
+local ATR_BUY_CHECKING_PAGE_FOR_MATCHES	= 3;
 local ATR_BUY_WAITING_FOR_AH_CAN_SEND	= 4;
+local ATR_BUY_PAGE_WITH_ITEM_LOADED		= 5;
 
 local gBuyState = ATR_BUY_NULL;
 
@@ -23,23 +24,22 @@ local gAtr_Buy_CurPage;
 local gAtr_Buy_Waiting_Start;
 local gAtr_Buy_Query;
 local gAtr_Buy_Pass;
+local gAtr_NextMatchIndex;
+local gAtr_Buy_MatchList = {};
 
 -----------------------------------------
 
-function Atr_Buy_Debug1 (yellow)
+function Atr_Buy_Debug1 (...)
 
 	if (gBuyState == ATR_BUY_NULL)										then asstr = "ATR_BUY_NULL"; end;
 	if (gBuyState == ATR_BUY_QUERY_SENT)								then asstr = "ATR_BUY_QUERY_SENT"; end;
-	if (gBuyState == ATR_BUY_PROCESSING_QUERY_RESULTS)					then asstr = "ATR_BUY_PROCESSING_QUERY_RESULTS"; end;
+	if (gBuyState == ATR_BUY_CHECKING_PAGE_FOR_MATCHES)					then asstr = "ATR_BUY_CHECKING_PAGE_FOR_MATCHES"; end;
 	if (gBuyState == ATR_BUY_JUST_BOUGHT)								then asstr = "ATR_BUY_JUST_BOUGHT"; end;
 	if (gBuyState == ATR_BUY_WAITING_FOR_AH_CAN_SEND)					then asstr = "ATR_BUY_WAITING_FOR_AH_CAN_SEND"; end;
+	if (gBuyState == ATR_BUY_PAGE_WITH_ITEM_LOADED)						then asstr = "ATR_BUY_PAGE_WITH_ITEM_LOADED"; end;
 
 	if (gBuyState ~= ATR_BUY_NULL) then
-		if (yellow) then
-			zc.msg (asstr, "curpage: ", gAtr_Buy_CurPage, "   gAtr_Buy_NumBought: ", gAtr_Buy_NumBought);
-		else
-			zc.msg_pink (asstr, "curpage: ", gAtr_Buy_CurPage, "   gAtr_Buy_NumBought: ", gAtr_Buy_NumBought);
-		end
+		zc.md (asstr, "curpage: ", gAtr_Buy_CurPage, "   numBought: ", gAtr_Buy_NumBought, "  ", ...);
 	end
 	
 end
@@ -52,6 +52,27 @@ function Atr_ClearBuyState()
 
 end
 
+
+-----------------------------------------
+
+local function Atr_Set_BuyConfirm_Progress ()
+
+	local numAvail = gAtr_Buy_MaxCanBuy - gAtr_Buy_NumBought;
+
+	local s;
+	
+	if (gAtr_Buy_StackSize == 1) then
+		s = string.format (ZT("%d available"), numAvail);
+	elseif (numAvail == 1) then
+		s = string.format (ZT("1 stack available"), numAvail);
+	else
+		s = string.format (ZT("%d stacks available"), numAvail);
+	end
+	
+	Atr_Buy_NumAvail_Text:SetText (s);
+	Atr_Buy_Continue_Text:SetText (string.format (ZT("%d bought so far"), gAtr_Buy_NumBought));
+
+end
 
 -----------------------------------------
 
@@ -76,19 +97,30 @@ function Atr_Buy1_Onclick ()
 	gAtr_Buy_StackSize		= data.stackSize;
 	gAtr_Buy_MaxCanBuy		= data.count;
 	gAtr_Buy_Pass			= 1;		-- - first pass
+	gAtr_NextMatchIndex		= 0;
 	
-	Atr_Buy_Confirm_ItemName:SetText (gAtr_Buy_ItemName.." x"..gAtr_Buy_StackSize);
+	Atr_Buy_Confirm_ItemName:SetText (gAtr_Buy_ItemName.." |cCCCCCCCCx"..gAtr_Buy_StackSize);
 	Atr_Buy_Confirm_Numstacks:SetNumber (1);
 	Atr_Buy_Confirm_Max_Text:SetText (ZT("max")..": "..gAtr_Buy_MaxCanBuy);
 	
-	Atr_Buy_Part1:Show();
-	Atr_Buy_Part2:Hide();
+	Atr_Buy_Part1:Hide();
+--	Atr_Buy_Part2:Hide();
+
+	Atr_Buy_Continue_Text:Hide();
+
+	Atr_Buy_NumAvail_Text:SetText (string.format (ZT("%d available"), gAtr_Buy_MaxCanBuy));
+	Atr_Buy_Continue_Text:SetText (string.format (ZT("%d bought so far"), 0));
 	
-	Atr_Buy_Confirm_OKBut:SetText (ZT("Buy"))
+	Atr_Set_BuyConfirm_Progress();
+	
+	Atr_Buy_Confirm_OKBut:SetText (ZT("Buy One"))
 	Atr_Buy_Confirm_OKBut:Disable();
+	Atr_Buy_Confirm_CancelBut:SetText (ZT("Cancel"))
 	Atr_Buy_Confirm_Frame:Show();
 
-	if (scan.searchWasExact and data.minpage ~= nil) then
+zc.md (scan.searchText, " ", scan.itemName, "  data.minpage ", data.minpage);
+
+	if (zc.StringSame (scan.searchText, scan.itemName) and data.minpage ~= nil) then
 		Atr_Buy_QueueQuery(data.minpage);
 	else
 		Atr_Buy_QueueQuery(0);
@@ -103,22 +135,26 @@ function Atr_Buy_QueueQuery (page)
 
 	gAtr_Buy_CurPage = page;
 
---zc.msg_pink ("Queuing query for page ", page);
+zc.md ("Queuing query for page ", page);
 
 	gBuyState = ATR_BUY_WAITING_FOR_AH_CAN_SEND;
 	gAtr_Buy_Waiting_Start = time();
 	
-	Atr_Buy_SendQuery();		-- give it a shot
+--	Atr_Buy_SendQuery();		-- give it a shot
 end
 
 -----------------------------------------
 
 function Atr_Buy_SendQuery ()
 
+	gAtr_NextMatchIndex = 0;
+			
 	if (CanSendAuctionQuery()) then
 
 		gBuyState = ATR_BUY_QUERY_SENT;
 
+		Atr_Buy_ClearMatchList();
+		
 		local queryString = zc.UTF8_Truncate (gAtr_Buy_ItemName,63);	-- attempting to reduce number of disconnects
 
 		QueryAuctionItems (queryString, "", "", nil, 0, 0, gAtr_Buy_CurPage, nil, nil);
@@ -127,21 +163,21 @@ function Atr_Buy_SendQuery ()
 end
 
 -----------------------------------------
-local prevBuyState;
-
------------------------------------------
 
 function Atr_Buy_Idle ()
 
-	if (gBuyState ~= prevBuyState) then
-		prevBuyState = gBuyState;
---		Atr_Buy_Debug1 (true);
+	local elapsed = -1;
+	if (gAtr_Buy_Waiting_Start) then
+		elapsed = time() - gAtr_Buy_Waiting_Start;
 	end
 	
+--	Atr_Buy_Debug1 ("elapsed", elapsed, "   pass: ", gAtr_Buy_Pass);
+
 	if (gBuyState == ATR_BUY_WAITING_FOR_AH_CAN_SEND) then
 	
---		zc.md ("WAITING_FOR_AH_CAN_SEND: ", time() - gAtr_Buy_Waiting_Start);
-		
+		Atr_Buy_Confirm_OKBut:Disable();
+		Atr_Buy_Confirm_OKBut:SetText (ZT("Scanning..."))
+
 		if (GetMoney() < gAtr_Buy_BuyoutPrice) then
 			Atr_Buy_Cancel (ZT("You do not have enough gold\n\nto make any more purchases."));
 		elseif (time() - gAtr_Buy_Waiting_Start > 10) then
@@ -149,27 +185,54 @@ function Atr_Buy_Idle ()
 		else	
 			Atr_Buy_SendQuery ();
 		end
-		
-	elseif (gBuyState == ATR_BUY_JUST_BOUGHT) then
 
---		zc.msg_pink ("ATR_BUY_JUST_BOUGHT: ",  time() - gAtr_Buy_Waiting_Start);
+	elseif (gBuyState == ATR_BUY_PAGE_WITH_ITEM_LOADED) then
 
-		local queueIf = (time() - gAtr_Buy_Waiting_Start > 2);		-- wait a few seconds for Auction List to Update after buys
+		if (Atr_Buy_PageHasMatch())	then		-- check if any left that haven't been bought
 		
-		Atr_Buy_NextPage_Or_Cancel (queueIf);
+			Atr_Buy_Confirm_OKBut:Enable();
+
+			if (gAtr_Buy_NumBought > 0) then
+				Atr_Buy_Confirm_OKBut:SetText (ZT("Buy Another"))
+				Atr_Buy_Confirm_CancelBut:SetText (ZT("Done"))
+			else
+				Atr_Buy_Confirm_OKBut:SetText (ZT("Buy One"))
+				Atr_Buy_Confirm_CancelBut:SetText (ZT("Cancel"))
+			end
 		
+		else
+			local queueIf = (time() - gAtr_Buy_Waiting_Start > 2);		-- wait a few seconds for Auction List to Update after buys
+		
+			Atr_Buy_NextPage_Or_Cancel (queueIf);
+		end
+			
 	end
-
+ 
 end
 
 -----------------------------------------
 
 function Atr_Buy_OnAuctionUpdate()
 
---	Atr_Buy_Debug1();
-
 	if (gBuyState == ATR_BUY_QUERY_SENT) then
-		Atr_Buy_CheckForMatches ();
+
+		
+		if (gAtr_Buy_Query:CheckForDuplicatePage(gAtr_Buy_CurPage)) then
+		
+			Atr_Buy_QueueQuery (gAtr_Buy_CurPage);
+			
+		else
+			gBuyState = ATR_BUY_CHECKING_PAGE_FOR_MATCHES;
+
+			Atr_Buy_BuildMatchList();
+			
+			if (#gAtr_Buy_MatchList > 0) then
+				gBuyState = ATR_BUY_PAGE_WITH_ITEM_LOADED;
+			else
+				Atr_Buy_NextPage_Or_Cancel();
+			end
+		end
+
 	end
 
 	return (gBuyState ~= ATR_BUY_NULL);
@@ -177,85 +240,89 @@ end
 
 -----------------------------------------
 
-function Atr_Buy_CheckForMatches ()
+function Atr_Buy_PageHasMatch ()
 
-	gBuyState = ATR_BUY_PROCESSING_QUERY_RESULTS;
-	
-	if (gAtr_Buy_Query:CheckForDuplicatePage(gAtr_Buy_CurPage)) then
-		Atr_Buy_QueueQuery (gAtr_Buy_CurPage);
-		return;
-	end
+	return (#gAtr_Buy_MatchList > 0);
+end
 
-	local isLastPage = gAtr_Buy_Query:IsLastPage(gAtr_Buy_CurPage);
-	
-	local numMatches = Atr_Buy_CountMatches();
-	
-	if (numMatches > 0) then		-- update the confirmation screen
-	
-		Atr_Buy_Confirm_OKBut:Enable();
+-----------------------------------------
 
-		if (gAtr_Buy_NumUserWants ~= -1) then		
-			Atr_Buy_Continue_Text:SetText (string.format (ZT("%d of %d bought so far"), gAtr_Buy_NumBought, gAtr_Buy_NumUserWants));
-			Atr_Buy_Part1:Hide();
-			Atr_Buy_Part2:Show();
-			Atr_Buy_Confirm_OKBut:SetText (ZT("Continue"))
+function Atr_Buy_ClearMatchList()
+
+	gAtr_Buy_MatchList = {};
+
+end
+
+
+-----------------------------------------
+
+function Atr_Buy_BuildMatchList ()
+
+	local i 		= 1;
+	local x			= 1;
+	local numInList = GetNumAuctionItems ("list");
+
+	Atr_Buy_ClearMatchList();
+
+	for i = 1,numInList do
+	
+		if (Atr_DoesAuctionMatch ("list", i, gAtr_Buy_ItemName, gAtr_Buy_BuyoutPrice, gAtr_Buy_StackSize)) then
+			gAtr_Buy_MatchList[x] = i;
+			x = x + 1;
 		end
-
-	else
-		Atr_Buy_NextPage_Or_Cancel();
 	end
 
 end
 
-
 -----------------------------------------
 
-function Atr_Buy_BuyMatches ()
-	return Atr_Buy_CountMatches (true);
-end
-
------------------------------------------
-
-function Atr_Buy_CountMatches (andBuy)
+function Atr_Buy_BuyNextOnPage ()
 
 	local numMatches		= 0;
 	local numBoughtThisPage	= 0;
-	local i = 1;
-
-	while (true) do
+	local i;
+	local x;
 	
-		local name, _, count, _, _, _, _, _, buyoutPrice, _ = GetAuctionItemInfo ("list", i);
+	local numInMatchList = #gAtr_Buy_MatchList;
 
-		if (name == nil) then
+	for x = numInMatchList,1,-1 do
+	
+		i = gAtr_Buy_MatchList[x];
+		
+		table.remove (gAtr_Buy_MatchList);
+		
+		if (Atr_DoesAuctionMatch ("list", i, gAtr_Buy_ItemName, gAtr_Buy_BuyoutPrice, gAtr_Buy_StackSize)) then
+			
+			PlaceAuctionBid("list", i, gAtr_Buy_BuyoutPrice);
+				
+			numBoughtThisPage  = numBoughtThisPage + 1;
+			gAtr_Buy_NumBought = gAtr_Buy_NumBought + 1;
+
+			Atr_Set_BuyConfirm_Progress();
+			Atr_Buy_Continue_Text:Show();
+		
 			break;
 		end
 
-		if (zc.StringSame (name, gAtr_Buy_ItemName) and buyoutPrice == gAtr_Buy_BuyoutPrice and count == gAtr_Buy_StackSize) then
-			
-			numMatches = numMatches + 1;
-			
-			if (andBuy and gAtr_Buy_NumUserWants > gAtr_Buy_NumBought) then
-				PlaceAuctionBid("list", i, gAtr_Buy_BuyoutPrice);
-				
-				numBoughtThisPage  = numBoughtThisPage + 1;
-				gAtr_Buy_NumBought = gAtr_Buy_NumBought + 1;
-			end
-		end
-
-		i = i + 1;
 	end
 
-	return numMatches, numBoughtThisPage;
+	return numBoughtThisPage;
 end
 
 
 
-
 -----------------------------------------
+
+local abcu_num = -1;
 
 function Atr_Buy_Confirm_Update ()
 
 	local num = Atr_Buy_Confirm_Numstacks:GetNumber();
+
+	if (num ~= abcu_num) then
+		
+		abcu_num = num;
+	end
 
 	if (num == 1) then
 		Atr_Buy_Confirm_Text2:SetText (ZT("stack for"));
@@ -290,7 +357,8 @@ end
 
 function Atr_Buy_IsComplete ()
 
-	if (gAtr_Buy_NumUserWants ~= -1 and gAtr_Buy_NumUserWants <= gAtr_Buy_NumBought) then
+--	if (gAtr_Buy_NumUserWants ~= -1 and gAtr_Buy_NumUserWants <= gAtr_Buy_NumBought) then
+	if (gAtr_Buy_MaxCanBuy <= gAtr_Buy_NumBought) then
 		return true;
 	end
 
@@ -318,6 +386,17 @@ end
 
 function Atr_Buy_Confirm_OK ()
 
+	local numJustBought = Atr_Buy_BuyNextOnPage()
+
+	if (numJustBought > 0) then
+
+		AuctionatorSubtractFromScan (gAtr_Buy_ItemName, gAtr_Buy_StackSize, gAtr_Buy_BuyoutPrice, numJustBought);
+		Atr_Buy_Confirm_OKBut:Disable();
+	end
+
+end
+
+--[[
 	if (gAtr_Buy_NumUserWants == -1) then
 		local numToBuy = Atr_Buy_Confirm_Numstacks:GetNumber();
 
@@ -334,7 +413,6 @@ function Atr_Buy_Confirm_OK ()
 
 	if (numJustBought > 0) then
 
---zc.msg (numJustBought, " from page ", gAtr_Buy_CurPage);
 	
 		AuctionatorSubtractFromScan (gAtr_Buy_ItemName, gAtr_Buy_StackSize, gAtr_Buy_BuyoutPrice, gAtr_Buy_NumBought);
 		gBuyState = ATR_BUY_JUST_BOUGHT;
@@ -345,14 +423,8 @@ function Atr_Buy_Confirm_OK ()
 	end
 	
 end
+]]--
 
------------------------------------------
-
-function Atr_Buy_Wait_For_Bought_To_Clear ()
-
-	zc.md ("Atr_Buy_Wait_For_Bought_To_Clear: ", time() - gAtr_Buy_Waiting_Start);
-	
-end
 
 -----------------------------------------
 

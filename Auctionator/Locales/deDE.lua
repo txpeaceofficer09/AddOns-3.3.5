@@ -35,6 +35,7 @@ AtrL["You may have at most 40 single-stack (x1)\nauctions posted for this item.\
 -- tooltip lines
 AtrL["Vendor"] = "Händlerpreis"
 AtrL["Auction"] = "Auktion"
+AtrL["Auction median"] = "Median der Auktion"
 AtrL["Disenchant"] = "Entzaubern"
 AtrL["BOP"] = "BoP"                                -- bind on pickup items cannot be traded on the auction house
 AtrL["Quest Item"] = "Questgegenstand"
@@ -251,6 +252,7 @@ AtrL["Russian translation courtesy of %s"] = "Russische Übersetzung von %s"
 AtrL["Auctionator"] = "Auctionator"
 AtrL["Author:  Zirco"] = "Autor: Zirco"
 AtrL["Version"] = "Version"
+AtrL["Options"] = "Optionen"
 
 
 --   Misc

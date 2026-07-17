@@ -23,7 +23,8 @@ BistooltipAddon = LibStub("AceAddon-3.0"):NewAddon("Bis-Tooltip")
 -- ============================================================
 
 local ADDON_NAME = "Bis-Tooltip"
-local ADDON_VERSION = "1.1.0-3.3.5a"
+local ADDON_VERSION = "2.1.1"
+local ADDON_CREDITS = "backport by Silver [DisruptionAuras]"
 local SCAN_DEBOUNCE = 0.25
 
 -- ============================================================
@@ -205,15 +206,17 @@ local function GetDataStoreInventory()
     return nil
 end
 
-function BistooltipAddon:HasDataStore()
-    return self.hasDataStore or false
-end
-
 -- ============================================================
 -- Addon Initialization
 -- ============================================================
 
 function BistooltipAddon:OnInitialize()
+    -- Pre-warm object pools FIRST (before any UI creation)
+    -- This prevents CreateFrame calls during rendering and reduces FPS drops
+    if BistooltipPools and BistooltipPools.Initialize then
+        BistooltipPools.Initialize()
+    end
+
     -- Create equipment watcher
     CreateEquipmentWatcher()
 
@@ -226,7 +229,8 @@ function BistooltipAddon:OnInitialize()
 
     -- Set addon info
     self.AceAddonName = ADDON_NAME
-    self.AddonNameAndVersion = ADDON_NAME .. " " .. ADDON_VERSION .. " backport by Silver [DisruptionAuras]"
+    self.AddonNameAndVersion = ADDON_NAME .. " " .. ADDON_VERSION .. " enchanted by Divian"
+    self.AddonCredits = ADDON_CREDITS
     self.Version = ADDON_VERSION
 
     -- Initialize configuration
@@ -251,6 +255,17 @@ function BistooltipAddon:OnInitialize()
 
     -- Ensure we have an initial cache for "You have this item" lines
     self:ScanEquipment(true)
+end
+
+-- ============================================================
+-- Addon Disable (cleanup)
+-- ============================================================
+
+function BistooltipAddon:OnDisable()
+    -- Cleanup tooltip event handlers
+    if self.cleanupBisTooltip then
+        self:cleanupBisTooltip()
+    end
 end
 
 -- ============================================================

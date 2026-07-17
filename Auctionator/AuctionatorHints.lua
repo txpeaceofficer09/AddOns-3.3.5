@@ -149,7 +149,7 @@ function Atr_ShowHints ()
 
 		dataOffset = line + FauxScrollFrame_GetOffset (AuctionatorScrollFrame);
 
-		local lineEntry = getglobal ("AuctionatorEntry"..line);
+		local lineEntry = _G["AuctionatorEntry"..line];
 
 		lineEntry:SetID(dataOffset);
 
@@ -159,10 +159,10 @@ function Atr_ShowHints ()
 
 			local lineEntry_item_tag = "AuctionatorEntry"..line.."_PerItem_Price";
 
-			local lineEntry_item		= getglobal(lineEntry_item_tag);
-			local lineEntry_itemtext	= getglobal("AuctionatorEntry"..line.."_PerItem_Text");
-			local lineEntry_text		= getglobal("AuctionatorEntry"..line.."_EntryText");
-			local lineEntry_stack		= getglobal("AuctionatorEntry"..line.."_StackPrice");
+			local lineEntry_item		= _G[lineEntry_item_tag];
+			local lineEntry_itemtext	= _G["AuctionatorEntry"..line.."_PerItem_Text"];
+			local lineEntry_text		= _G["AuctionatorEntry"..line.."_EntryText"];
+			local lineEntry_stack		= _G["AuctionatorEntry"..line.."_StackPrice"];
 
 			lineEntry_item:Show();
 			lineEntry_itemtext:Hide();
@@ -194,9 +194,9 @@ end
 
 function Atr_SetMFcolor (frameName, blue)
 
-	local goldButton = getglobal(frameName.."GoldButton");
-	local silverButton = getglobal(frameName.."SilverButton");
-	local copperButton = getglobal(frameName.."CopperButton");
+	local goldButton   = _G[frameName.."GoldButton"];
+	local silverButton = _G[frameName.."SilverButton"];
+	local copperButton = _G[frameName.."CopperButton"];
 
 	if (blue) then
 		goldButton:SetNormalFontObject(NumberFontNormalRightATRblue);
@@ -227,11 +227,36 @@ function Atr_GetAuctionPrice (item)  -- itemName or itemID
 		return nil;
 	end
 
-	if (gAtr_ScanDB[itemName]) then
+	if (gAtr_ScanDB and gAtr_ScanDB[itemName]) then
 		return gAtr_ScanDB[itemName];
 	end
 	
 	return Atr_GetMostRecentSale (itemName);
+end	
+
+-----------------------------------------
+
+function Atr_GetMeanPrice (item)  -- itemName or itemID
+
+	local itemName;
+	
+	if (type (item) == "number") then
+		itemName = GetItemInfo (item);
+	else
+		itemName = item;
+	end
+
+	if (itemName == nil) then
+		return nil;
+	end
+
+	if (gAtr_MeanDB and gAtr_MeanDB[itemName] and #gAtr_MeanDB[itemName] > 0) then
+        local median = nil
+        if #gAtr_MeanDB[itemName] %2 == 0 then median = (gAtr_MeanDB[itemName][#gAtr_MeanDB[itemName]/2] + gAtr_MeanDB[itemName][#gAtr_MeanDB[itemName]/2+1]) / 2 else median = gAtr_MeanDB[itemName][math.ceil(#gAtr_MeanDB[itemName]/2)] end
+        return math.floor(median)
+	end
+	
+	return nil;
 end	
 
 -----------------------------------------
@@ -430,7 +455,11 @@ tinsert (dustsAndEssences, LESSER_COSMIC)
 tinsert (dustsAndEssences, ABYSS_CRYSTAL)
 
 gAtr_dustCacheIndex = 1;
-local dustCacheState = 0;
+
+local DUST_CACHE_READY_FOR_NEXT  = 0;
+local DUST_CACHE_WAITING_ON_PREV = 1;
+
+local dustCacheState = DUST_CACHE_READY_FOR_NEXT;
 
 -----------------------------------------
 
@@ -445,15 +474,18 @@ function Atr_GetNextDustIntoCache()		-- make sure all the dusts and essences are
 	
 	local itemName, itemLink = GetItemInfo(itemString);
 	
-	if (itemLink == nil and dustCacheState == 0) then
-		dustCacheState = 1;
-		zc.md ("pulling "..itemString.." into the local cache");
+	zc.md (itemString, itemName, itemLink, dustCacheState, gAtr_dustCacheIndex);
+
+	if (itemLink == nil and dustCacheState == DUST_CACHE_READY_FOR_NEXT) then
+		dustCacheState = DUST_CACHE_WAITING_ON_PREV;
 		AtrScanningTooltip:SetHyperlink(itemString);
+		local _, link = GetItemInfo(itemString);
+--		zc.md ("pulling "..itemString.." into the local cache   ", itemLink, link, dustCacheState);
 	end
 
 	if (itemLink) then
-		--zc.md (itemName.." is already in local cache");
-		dustCacheState = 0;
+--		zc.md (itemLink.." is in local cache");
+		dustCacheState = DUST_CACHE_READY_FOR_NEXT;
 		gAtr_dustCacheIndex = gAtr_dustCacheIndex + 1;
 		
 		if (gAtr_dustCacheIndex > #dustsAndEssences) then
@@ -774,12 +806,14 @@ local function ShowTipWithPricing (tip, link, num)
 	
 	local vendorPrice	= 0;
 	local auctionPrice	= 0;
+    local auctionMedianPrice = 0;
 	local dePrice		= nil;
 	
 	if (AUCTIONATOR_V_TIPS == 1) then vendorPrice	= itemVendorPrice; end;
 	if (AUCTIONATOR_A_TIPS == 1) then auctionPrice	= Atr_GetAuctionPrice (itemName); end;
+    if (AUCTIONATOR_A_TIPS == 1) then auctionMedianPrice = Atr_GetMeanPrice (itemName); end;
 	if (AUCTIONATOR_D_TIPS == 1) then dePrice		= Atr_CalcDisenchantPrice (itemType, itemRarity, itemLevel); end;
-	
+    
 	local xstring = "";
 	local showStackPrices = IsShiftKeyDown();
 	
@@ -789,6 +823,7 @@ local function ShowTipWithPricing (tip, link, num)
 
 	if (num and showStackPrices) then
 		if (auctionPrice)	then	auctionPrice = auctionPrice * num;	end;
+        if (auctionMedianPrice) then auctionMedianPrice = auctionMedianPrice * num; end;
 		if (vendorPrice)	then	vendorPrice  = vendorPrice  * num;	end;
 		if (dePrice)  		then	dePrice  	 = dePrice  * num;	end;
 		xstring = "|cFFAAAAFF x"..num.."|r";
@@ -814,14 +849,17 @@ local function ShowTipWithPricing (tip, link, num)
 		local isQuest = (bonding == 4 or bonding == 5);
 		
 		if (isBOP) then
-			tip:AddDoubleLine (ZT("Auction")..xstring, "|cFFFFFFFF"..ZT("BOP").."  ");		
+			tip:AddDoubleLine (ZT("Auction")..xstring, "|cFFFFFFFF"..ZT("BOP").."  ");				
 		elseif (isQuest) then
-			tip:AddDoubleLine (ZT("Auction")..xstring, "|cFFFFFFFF"..ZT("Quest Item").."  ");		
+			tip:AddDoubleLine (ZT("Auction")..xstring, "|cFFFFFFFF"..ZT("Quest Item").."  ");			
 		elseif (auctionPrice ~= nil) then
 			tip:AddDoubleLine (ZT("Auction")..xstring, "|cFFFFFFFF"..zc.priceToMoneyString (auctionPrice));
 		else
 			tip:AddDoubleLine (ZT("Auction")..xstring, "|cFFFFFFFF"..ZT("unknown").."  ");
 		end
+        if (auctionMedianPrice ~= nil) then
+            tip:AddDoubleLine (ZT("Auction median")..xstring, "|cFFFFFFFF"..zc.priceToMoneyString (auctionMedianPrice));
+        end
 	end
 	
 	-- disenchanting info
@@ -936,6 +974,14 @@ hooksecurefunc (GameTooltip, "SetQuestItem",
 	function (tip, type, index)
 		local _, _, num = GetQuestItemInfo(type, index);
 		ShowTipWithPricing (tip, GetQuestItemLink(type, index), num);
+	end
+);
+
+hooksecurefunc (GameTooltip, "SetMerchantItem",
+	function(tip, merchantID)
+		local itemLink = GetMerchantItemLink(merchantID)
+		local _, _, _, num = GetMerchantItemInfo(merchantID)
+		ShowTipWithPricing (tip, itemLink, num);
 	end
 );
 

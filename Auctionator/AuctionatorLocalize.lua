@@ -11,7 +11,7 @@ AtrL = {};
 
 function Atr_PickLocalizationTable (locale)
 
-	local f = getglobal ("AtrBuildLTable_"..locale);
+	local f = _G["AtrBuildLTable_"..locale];
 	if (type (f) == "function") then
 		f();
 --		DEFAULT_CHAT_FRAME:AddMessage (locale.." found");
