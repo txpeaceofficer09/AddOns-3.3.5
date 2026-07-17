@@ -1,0 +1,10 @@
+## Interface: 30300
+## Title: LFD Ascended Default
+## Notes: Defaults LFD dropdown to Ascended.
+## Author: Xelraz
+## Version: 1.0
+## SavedVariablesPerCharacter: LFDAscendedDB
+## Version: @project-version@
+
+
+LFDAscendedDefault.lua

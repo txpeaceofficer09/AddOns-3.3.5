@@ -1,0 +1,61 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/FrameXML/UI.xsd">
+
+	<Script file="ZygorGuidesViewer.lua"/>
+	<Script file="TargetPreview.lua"/>
+	<Script file="Ver.lua"/>
+	<Script file="Parser.lua"/>
+	<Script file="Options.lua"/>
+	<Script file="GuideBrowser.lua"/>
+	<Script file="Waypoints.lua"/>
+	<Script file="Log.lua"/>
+	<Script file="Functions.lua"/>
+	<Script file="QuestTracking.lua"/>
+	<Script file="Faction.lua"/>
+	<Script file="Profession.lua"/>
+
+	<Script file="QuestAutoAccept.lua"/>
+
+	<!-- Dungeon data (needed by Gear Finder) -->
+	<Script file="Dungeons.lua"/>
+	<Script file="Data-WOTLK\Dungeons.lua"/>
+
+	<!-- ItemScore & Gear Finder system -->
+	<Script file="Code-WOTLK\Item-DataTables.lua"/>
+	<Script file="Data-WOTLK\Item-Statweights.lua"/>
+	<Script file="Data-WOTLK\GearFinderItemMeta.lua"/>
+	<Script file="Item-ItemScore.lua"/>
+	<Script file="Code-WOTLK\Item-ItemScore.lua"/>
+	<Script file="Item-Upgrades.lua"/>
+	<Script file="Item-GearFinder.lua"/>
+	<Script file="Code-WOTLK\Item-GearFinder.lua"/>
+	<Script file="Item-Quest.lua"/>
+
+	<Include file="ZygorTalentAdvisor\Localization\load.xml"/>
+	<Include file="ZygorTalentAdvisor\files.xml"/>
+	<Include file="ZygorTalentAdvisor\Builds\Autoload.xml"/>
+	<Script file="TalentAdvisorCompat.lua"/>
+
+	<Script file="Step.lua"/>
+	<Script file="Goal.lua"/>
+	<Include file="Data\data.xml"/>
+
+	<Script file="Pointer.lua"/>
+	<Include file="PointerMarkerTemplates.xml" />
+
+	<Script file="Foglight.lua"/>
+	<Script file="MapCoords.lua"/>
+
+	<Include file="MapSpotMarkerTemplates.xml" />
+	<Script file="MapSpot.lua" />
+	<Script file="MapSpotSet.lua" />
+	<Script file="MapSpotsDetector.lua" />
+
+		<!-- <Script file="ZygorGuidesViewerOptions.lua"/> -->
+	<Include file="ZygorMapIcon.xml" />
+	<Include file="ZygorGuidesViewerFrame.xml" />
+	<!-- <Include file="ZygorGuidesViewerMiniFrame.xml"/> -->
+
+	<!-- UI Widget Framework + Gold Guide (must load AFTER main frame) -->
+	<Include file="UiWidgets\files.xml"/>
+	<Include file="GoldUI\Gold.xml"/>
+</Ui>

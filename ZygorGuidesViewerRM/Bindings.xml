@@ -1,0 +1,27 @@
+<Bindings>
+  <Binding name="ZYGORGUIDES_ACTIONBUTTON1" header="ZYGORGUIDES">
+<![CDATA[
+if ZygorGuidesViewer then ZygorGuidesViewer:ActionButtons_ClickBinding(1) end
+]]>
+  </Binding>
+  <Binding name="ZYGORGUIDES_ACTIONBUTTON2" header="ZYGORGUIDES">
+<![CDATA[
+if ZygorGuidesViewer then ZygorGuidesViewer:ActionButtons_ClickBinding(2) end
+]]>
+  </Binding>
+  <Binding name="ZYGORGUIDES_ACTIONBUTTON3" header="ZYGORGUIDES">
+<![CDATA[
+if ZygorGuidesViewer then ZygorGuidesViewer:ActionButtons_ClickBinding(3) end
+]]>
+  </Binding>
+  <Binding name="ZYGORGUIDES_ACTIONBUTTON4" header="ZYGORGUIDES">
+<![CDATA[
+if ZygorGuidesViewer then ZygorGuidesViewer:ActionButtons_ClickBinding(4) end
+]]>
+  </Binding>
+  <Binding name="ZYGORGUIDES_ACTIONBUTTON5" header="ZYGORGUIDES">
+<![CDATA[
+if ZygorGuidesViewer then ZygorGuidesViewer:ActionButtons_ClickBinding(5) end
+]]>
+  </Binding>
+</Bindings>

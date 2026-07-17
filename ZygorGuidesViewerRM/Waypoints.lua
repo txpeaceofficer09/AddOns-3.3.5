@@ -1,0 +1,1050 @@
+local me = ZygorGuidesViewer
+if not me then return end
+
+local ZGV=ZygorGuidesViewer
+local L = ZGV.L
+local BZL = ZGV.BZL
+
+local Astrolabe
+
+local tinsert=tinsert
+
+
+---------------------------------------------------------------------------
+-- Travel Advisor - Lightweight cross-zone routing for 3.3.5a
+-- Uses Astrolabe distance to pick closest transit, LibTaxi for FP awareness.
+---------------------------------------------------------------------------
+
+local TA_Astrolabe = DongleStub and (({pcall(DongleStub,"Astrolabe-0.4-Zygor")})[2] or ({pcall(DongleStub,"Astrolabe-0.4")})[2])
+local TA_LibTaxi = LibStub and ({pcall(LibStub,"LibTaxi-1.0")})[2]
+
+local zoneContinentCache = {}
+local zoneNumberCache = {}
+
+local function FormatWaypointLocation(goal, fallbackMap)
+	if not goal then return nil end
+	local map = goal.map or fallbackMap
+	local x, y = goal.x, goal.y
+	if not map or not x or not y then return nil end
+	return ("%s (%d,%d)"):format(map, x, y)
+end
+
+local function GetZoneContinent(zoneName)
+	if zoneContinentCache[zoneName] then return zoneContinentCache[zoneName] end
+	local c, z = ZGV:GetMapZoneNumbers(zoneName)
+	if c and c > 0 then
+		zoneContinentCache[zoneName] = c
+		zoneNumberCache[zoneName] = z
+		return c
+	end
+	return nil
+end
+
+local function GetZoneNumber(zoneName)
+	if zoneNumberCache[zoneName] then return zoneContinentCache[zoneName], zoneNumberCache[zoneName] end
+	GetZoneContinent(zoneName)
+	return zoneContinentCache[zoneName], zoneNumberCache[zoneName]
+end
+
+-- Compute Astrolabe distance from player to a zone coordinate
+local function DistToPoint(zone, x, y)
+	if not TA_Astrolabe then return 999999 end
+	local pc, pz, px, py = TA_Astrolabe:GetCurrentPlayerPosition()
+	if not pc or not px then return 999999 end
+	local c, z = GetZoneNumber(zone)
+	if not c then return 999999 end
+	local dist = TA_Astrolabe:ComputeDistance(pc, pz, px, py, c, z, x/100, y/100)
+	return dist or 999999
+end
+
+-- Transit routes: {fromCont, toCont, faction, mode, instruction, zone, x, y, arrivalCont, arrivalZone}
+local TRANSIT_ROUTES = {
+	-- Alliance: EK <-> Kalimdor
+	{2, 1, "Alliance", "ship", "Take the boat from Menethil Harbor to Theramore", "Wetlands", 4.6, 57.3},
+	{1, 2, "Alliance", "ship", "Take the boat from Theramore to Menethil Harbor", "Dustwallow Marsh", 71.6, 56.2},
+	{2, 1, "Alliance", "ship", "Take the boat from Stormwind Harbor to Auberdine", "Stormwind City", 18.4, 25.6},
+	{1, 2, "Alliance", "ship", "Take the boat from Auberdine to Stormwind", "Darkshore", 32.4, 43.8},
+	-- Horde: EK <-> Kalimdor
+	{2, 1, "Horde", "zeppelin", "Take the zeppelin from Undercity to Orgrimmar", "Tirisfal Glades", 60.7, 58.8},
+	{1, 2, "Horde", "zeppelin", "Take the zeppelin from Orgrimmar to Undercity", "Durotar", 50.9, 13.8},
+	{2, 1, "Horde", "zeppelin", "Take the zeppelin from Grom'gol to Orgrimmar", "Stranglethorn Vale", 31.6, 29.2},
+	{1, 2, "Horde", "zeppelin", "Take the zeppelin from Orgrimmar to Grom'gol", "Durotar", 50.9, 13.8},
+	-- Alliance: to Northrend
+	{2, 4, "Alliance", "ship", "Take the boat from Stormwind Harbor to Valiance Keep", "Stormwind City", 18.4, 25.6},
+	{1, 4, "Alliance", "ship", "Take the boat from Auberdine to Valiance Keep", "Darkshore", 32.4, 43.8},
+	-- Horde: to Northrend
+	{2, 4, "Horde", "zeppelin", "Take the zeppelin from Undercity to Vengeance Landing", "Tirisfal Glades", 60.7, 58.8},
+	{1, 4, "Horde", "zeppelin", "Take the zeppelin from Orgrimmar to Warsong Hold", "Durotar", 50.9, 13.8},
+	-- Northrend back
+	{4, 2, "Alliance", "ship", "Take the boat from Valiance Keep to Stormwind", "Borean Tundra", 59.7, 69.1},
+	{4, 1, "Horde", "zeppelin", "Take the zeppelin from Warsong Hold to Orgrimmar", "Borean Tundra", 41.6, 53.6},
+	{4, 2, "Horde", "zeppelin", "Take the zeppelin from Vengeance Landing to Undercity", "Howling Fjord", 77.6, 28.2},
+	-- Outland via Dark Portal
+	{2, 3, nil, "portal", "Go through the Dark Portal in Blasted Lands", "Blasted Lands", 58.0, 58.0},
+	{3, 2, nil, "portal", "Go through the Dark Portal in Hellfire Peninsula", "Hellfire Peninsula", 89.0, 50.0},
+	-- Dalaran portals (Northrend hub - instant, always prefer if player is in Dalaran)
+	{4, 2, "Alliance", "portal", "Use the Stormwind portal in Dalaran", "Dalaran", 40.1, 62.8},
+	{4, 2, "Horde", "portal", "Use the Undercity portal in Dalaran", "Dalaran", 55.4, 37.8},
+	{4, 1, "Alliance", "portal", "Use the Darnassus portal in Dalaran", "Dalaran", 37.6, 63.3},
+	{4, 1, "Horde", "portal", "Use the Orgrimmar portal in Dalaran", "Dalaran", 58.2, 38.5},
+	{4, 3, nil, "portal", "Use the Shattrath portal in Dalaran", "Dalaran", 46.1, 33.5},
+	-- Shattrath portals (Outland hub)
+	{3, 2, "Alliance", "portal", "Use the Stormwind portal in Shattrath", "Shattrath City", 57.2, 48.2},
+	{3, 1, "Alliance", "portal", "Use the Darnassus portal in Shattrath", "Shattrath City", 56.8, 49.5},
+	{3, 1, "Horde", "portal", "Use the Orgrimmar portal in Shattrath", "Shattrath City", 56.8, 49.5},
+}
+
+local currentAdvice = nil
+local lastAdviceSig = nil
+
+local function GetTravelAdvice(destZone)
+	if not destZone then return nil end
+	local playerZone = GetRealZoneText()
+	if playerZone == destZone then return nil end
+
+	local sig = playerZone .. ">" .. destZone
+	if sig == lastAdviceSig then return currentAdvice end
+	lastAdviceSig = sig
+
+	local playerCont = GetZoneContinent(playerZone)
+	local destCont = GetZoneContinent(destZone)
+	if not playerCont or not destCont then currentAdvice = nil return nil end
+
+	-- Same continent: suggest nearest flight path
+	if playerCont == destCont then
+		-- Check if player has any discovered taxi near destination using LibTaxi
+		local fpNote = ""
+		if TA_LibTaxi then
+			local known = TA_LibTaxi:GetTaxisEnglish()
+			if known then
+				-- See if any known taxi contains the dest zone name
+				local hasNearby = false
+				for taxiName in pairs(known) do
+					taxiName = type(taxiName) == "string" and taxiName or (type(known[taxiName]) == "string" and known[taxiName]) or nil
+					if taxiName and taxiName:find(destZone, 1, true) then
+						hasNearby = true
+						fpNote = " (FP known)"
+						break
+					end
+				end
+				if not hasNearby then
+					fpNote = " (no FP discovered nearby!)"
+				end
+			end
+		end
+		currentAdvice = {
+			mode = "taxi",
+			text = "Fly to " .. destZone .. fpNote,
+		}
+		return currentAdvice
+	end
+
+	-- Different continent: find closest transit point to player
+	local faction = UnitFactionGroup("player")
+	local candidates = {}
+	for _, route in ipairs(TRANSIT_ROUTES) do
+		if route[1] == playerCont and route[2] == destCont then
+			if route[3] == nil or route[3] == faction then
+				local dist = DistToPoint(route[6], route[7], route[8])
+				-- Portals are instant travel - heavily discount their distance
+				if route[4] == "portal" then dist = dist * 0.1 end
+				tinsert(candidates, { route = route, dist = dist })
+			end
+		end
+	end
+
+	-- Sort by distance (closest first)
+	table.sort(candidates, function(a, b) return a.dist < b.dist end)
+
+	local best = candidates[1] and candidates[1].route
+	if best then
+		currentAdvice = { mode = best[4], text = best[5], zone = best[6], x = best[7], y = best[8] }
+	else
+		currentAdvice = { mode = "walk", text = "Travel to " .. destZone }
+	end
+	return currentAdvice
+end
+
+local function TravelAdvisor_Clear()
+	currentAdvice = nil
+	lastAdviceSig = nil
+end
+
+function me:GetLibRoverPath() return nil end
+function me:GetLibRoverModes() return nil end
+function me:ClearLibRoverPath() TravelAdvisor_Clear() end
+
+local function GetTravelArrowTitle(destZone)
+	local advice = GetTravelAdvice(destZone)
+	if not advice then return nil end
+	local colors = { taxi="|cff88ff00", ship="|cff5588ff", zeppelin="|cff5588ff", portal="|cffaa55ff" }
+	return (colors[advice.mode] or "|cffffffff") .. advice.text .. "|r"
+end
+
+local function GetRemasterArrowTitle(self,goal,explicitTitle)
+	local useRemasterPointer =
+		(self and self.db and self.db.profile and self:IsRemasterSkin())
+		or (self and self.Pointer and self.Pointer.IsRetailRemasterArrowEnabled and self.Pointer:IsRetailRemasterArrowEnabled())
+	if not useRemasterPointer then
+		return (explicitTitle and explicitTitle ~= "") and explicitTitle or nil
+	end
+	if not goal then return nil end
+
+	if goal.action=="accept" and goal.quest then
+		return ("Accept '%s'"):format(goal.quest)
+	end
+	if goal.action=="turnin" and goal.quest then
+		return ("Turn in '%s'"):format(goal.quest)
+	end
+	if goal.action=="talk" and goal.npc then
+		return ("Talk to %s"):format(goal.npc)
+	end
+	if goal.action=="goto" and goal.npc then
+		return ("Talk to %s"):format(goal.npc)
+	end
+	if goal.action=="goto" and (goal.map or goal.x or goal.y) and not goal.npc then
+		if goal.map and goal.x and goal.y then
+			return ("Go to %s %.1f,%.1f"):format(goal.map,goal.x,goal.y)
+		elseif goal.x and goal.y then
+			return ("Go to %.1f,%.1f"):format(goal.x,goal.y)
+		end
+		return "Go to destination"
+	end
+	if goal.action=="kill" and goal.target then
+		return ("Kill %s"):format(goal.target)
+	end
+	if (goal.action=="get" or goal.action=="collect") and goal.target then
+		return ("Collect %s"):format(goal.target)
+	end
+	if goal.action=="goldcollect" and goal.target then
+		return ("Farm %s"):format(goal.target)
+	end
+	if goal.action=="fpath" and goal.param then
+		return ("Take flight to %s"):format(goal.param)
+	end
+	if goal.routegroup then
+		local step = goal.parentStep
+		if step then
+			for _,g in ipairs(step.goals) do
+				if g.action and g.action~="goto" and g.target then
+					if g.action=="goldcollect" then return ("Farm %s in this area"):format(g.target) end
+					if g.action=="kill" then return ("Kill %s in this area"):format(g.target) end
+					if g.action=="collect" or g.action=="get" then return ("Collect %s in this area"):format(g.target) end
+					break
+				end
+			end
+		end
+		return "Follow the path"
+	end
+	if goal.GetText then
+		local raw = goal:GetText(true)
+		if raw and raw~="" then
+			raw = raw:gsub("|c%x%x%x%x%x%x%x%x",""):gsub("|r","")
+			raw = raw:gsub("%s+%(%d+/%d+%)$","")
+			raw = raw:gsub("%s+%d+%%$","")
+			if raw:match("^(Accept%s+)") or raw:match("^(Turn in%s+)") or raw:match("^(Talk to%s+)") or raw:match("^(Kill%s+)") or raw:match("^(Get%s+)") or raw:match("^(Collect%s+)") then
+				return raw:gsub("^(Get%s+)","Collect ")
+			end
+		end
+	end
+	return (explicitTitle and explicitTitle ~= "") and explicitTitle or nil
+end
+
+function me:getXY(id)
+	self:Debug("getXY "..id)
+	return (id % 10001)/10000, math.floor(id / 10001)/10000
+end
+
+local addonnames = {"none","internal","cart2","carbonite","tomtom"}
+local addonnum = {}
+for i=1,#addonnames do addonnum[addonnames[i]]=i end
+
+function me:ConnectWaypointAddon(addon)
+	if not addon then addon=self.db.profile.waypointaddon end
+end
+
+function me:AutodetectWaypointAddon()
+	self.autodetectingwaypointaddon = true
+	self:Print(L["waypointaddon_detecting"])
+
+	local checks = {"cart2","carbonite","tomtom","internal"}
+	for i=1,#checks do
+		if self:IsWaypointAddonReady(checks[i]) then
+			return checks[i]
+		end
+	end
+
+	-- else
+	self:Print(L["waypointaddon_notdetected"])
+end
+
+function me:GetWaypointAddon()
+	return addonnum[self.db.profile.waypointaddon] or 0
+end
+
+function me:SetWaypointAddon(info,addon)
+	if not addon then addon=info end
+	if type(addon)=="number" then addon=addonnames[addon] end
+	if not addon then
+		-- try to autodetect
+		addon = self:AutodetectWaypointAddon()
+		if not addon then addon="none" end
+	end
+	addon=addon:gsub("[0-9]-_","")
+
+	self:Debug("Setting waypoint addon: "..addon)
+	if addon~="none" and not self:IsWaypointAddonReady(addon) then
+		self:Print(L["waypointaddon_fail"]:format(L["opt_group_addons_"..addon]))
+		return
+	end
+
+	-- disconnect the current addon
+	--if (addon~=self.db.profile.waypointaddon) then
+	self:UnsetWaypointAddon()
+	--end
+
+	self.db.profile.waypointaddon = addon
+	--self.iconsregistered = false
+	--self.iconregistryretries = 0
+	self.ConnectedWaypointer = self.WaypointFunctions[addon]
+
+	self:Print(L["waypointaddon_set"]:format(L["opt_group_addons_"..addon]))
+
+	self:SetWaypoint()
+--[[
+	if (self.db.profile.waypointaddon=="none") then
+		self.optionsmap.args.minicons.disabled = true
+	else
+		self.optionsmap.args.minicons.disabled = false
+	end
+	LibStub("AceConfigRegistry-3.0"):NotifyChange("ZygorGuidesViewer")
+]]--
+end
+
+me.WaypointFunctions = {}
+
+me.WaypointFunctions['tomtom'] = {
+	isready = function()
+		-- make SURE we have TomTom and not Carbonite emulating it
+		return not not (TomTom and TomTom.events) -- make sure it's not Carbonite ;P
+	end,
+	setwaypoint = function (self,goalnumORx,y,title)
+		self:Debug("placing TomTom waypoint")
+
+		self:ClearTomTomWaypoints()
+		if goalnumORx==false then return end
+
+		if y then
+			self:CreateTomTomWaypointXY(goalnumORx,y,title,true)
+		else
+			self:CreateTomTomWaypoints(goalnumORx)
+		end
+	end,
+	addmapnote = function (self,zone,x,y,data)
+		if BZL[zone] then zone=BZL[zone] end
+		self:CreateTomTomWaypointZXY(zone,x,y,data.title,false)
+	end,
+	disconnect = function(self)
+		-- TomTom can ask for clearing all waypoints; Carbonite should not.
+		if StaticPopupDialogs["TOMTOM_REMOVE_ALL_CONFIRM"] then StaticPopupDialogs["TOMTOM_REMOVE_ALL_CONFIRM"]:OnAccept() end
+
+		-- Carbonite doesn't do this, either
+		if TomTomCrazyArrow then TomTomCrazyArrow:Hide() end
+	end
+}
+
+me.WaypointFunctions['carbonite'] = {
+	isready = function()
+		return not not (Nx and Nx.TTAW)
+	end,
+	setwaypoint = function (self,goalnumORx,y,title)
+		self:Debug("placing Carbonite waypoint")
+
+		-- clear waypoints
+		local map=Nx.Map:GeM(1)
+		if map then wipe(map.Tar) end
+
+		if goalnumORx==false then return end
+
+		if y then
+			self:CreateTomTomWaypointXY(goalnumORx,y,title)
+		else
+			self:CreateTomTomWaypoints(goalnumORx)
+		end
+	end,
+	clearmapnotes = function (self)
+		local folders = Nx.Fav:FiF("Notes")
+		for i,fol in ipairs(folders) do
+			for j=1,#fol do
+				if fol[j] and fol[j]:match("~#~.*%(ZG%)~") then
+					tremove(fol,j)
+					j=j-1
+				end
+			end
+		end
+		Nx.Fav:Upd()
+	end,
+	addmapnote = function (self,zone,x,y,data)
+		--[[
+		local folder=Nx.Fav:FiF("Zygor Guides")
+		if not folder then
+			folder=Nx.Fav:AdF1("Zygor Guides")
+		end
+		local fav = Nx.Fav:FiF1("Gold Guide","Name",folder)
+		if not fav then
+			fav=Nx.Fav:AdF2("Gold Guide",folder)
+			fav["ID"]=maI
+			sort(fav,function(a,b) return a["Name"]<b["Name"] end)
+		end
+		--]]
+
+
+		if BZL[zone] then zone=BZL[zone] end
+		local carbZone = Nx.MNTI1[zone] --zone IDs
+		local fav = Nx.Fav:GNF(carbZone)
+		local s=Nx.Fav:CrI("N",0,(data and data.title or "Gold Spot") .. " (ZG)",3,carbZone,x,y)
+		Nx.Fav:AdI1(fav,nil,s)
+		-- ...
+		Nx.Fav:Upd()
+		--Nx:TTSTCZXY(contid,zoneid,x,y,data and data.title,false,true,true,nil)  -- cont,zone,x,y,name,persist,minimap,world,data
+	end,
+	disconnect = function(self)
+		-- remove waypoints
+		local Nx=Nx
+		for i=1,10000 do Nx:TTRW(i) end
+	end
+}
+
+me.WaypointFunctions['cart2'] = {
+	isready = function()
+		return not not (Cartographer_Notes and Cartographer_Notes:IsActive() and Cartographer_Notes.externalDBs)
+	end,
+
+	clearmapnotes = function (self)
+	end,
+	addmapnote = function (self,zone,x,y,data)
+	end,
+
+	setwaypoint = function (self,goalnumORx,y,title)
+		self:Debug("Setting cart2 waypoint")
+		--self:Debug(self.CurrentStep.mapnote)
+	--[[		
+		if self.oldnote then
+			Cartographer_Notes:DeleteNote(self.oldzone,self.oldnote)
+		end
+	--]]
+		self:ClearCartographerWaypoints()
+		if goalnumORx==false then return end
+
+		if y then
+			self:CreateCartographerWaypointXY(goalnumORx,y,title)
+		else
+			self:CreateCartographerWaypoints(goalnumORx)
+		end
+
+		--[[
+		local queue = Cartographer_Waypoints.Queue
+		for i,v in ipairs(queue) do
+			if v and v.Db=="ZygorGuides" then
+				table.remove(queue,i)
+			end
+		end
+		--]]
+
+		--local note = Cartographer_Notes:SetNote(zone,x/100,y/100,"Circle","ZygorGuidesViewer",'manual',true,'title',)
+	--		if mapnote and mapzone and Cartographer_Notes.externalDBs then
+	--			Cartographer_Waypoints:SetNoteAsWaypoint(mapzone,mapnote)
+	--		end
+	--		self.oldzone = zone
+	end,
+	disconnect = function(self)
+		self:ClearCartographerWaypoints()
+		--if Cartographer_Notes and Cartographer_Notes.externalDBs and Cartographer_Notes.externalDBs["ZygorGuidesViewer"] then 
+		Cartographer_Notes:UnregisterNotesDatabase("ZygorGuidesViewer")
+	end
+}
+
+me.WaypointFunctions['cart3'] = {
+	isready = function()
+		return not not (Cartographer3 and Cartographer3.db)
+	end,
+	disconnect = function(self)
+		--[[
+		if Cartographer3 and Cartographer3.db then
+			self:Print("Cartographer3 disconnected.")
+		else
+			self:Print("Cartographer3 not connected.")
+		end
+		--]]
+	end
+}
+
+me.WaypointFunctions['metamap'] = {
+	isready = function()
+		return false
+	end
+}
+
+me.WaypointFunctions['internal'] = {
+	isready = function(self)
+		return not not self.Pointer.ready
+	end,
+	setwaypoint = function (self,goalnumORx,y,title)
+		if UnitIsDeadOrGhost("player") then return end -- don't overwrite the stinking arrow
+		self.Pointer:ClearWaypoints("way")
+		if goalnumORx==false then return end
+		if not y then
+			local goals={}
+			local firstpoint,lastpoint
+			local points = {}
+			local preferredDisplayGoal
+			local lastDisplayGoal
+			local displayActions = {
+				accept=true, turnin=true, talk=true, goto=true, use=true, buy=true,
+				get=true, collect=true, goldcollect=true, goal=true, kill=true, from=true,
+			}
+			local function IsNavOnly(goal)
+				return goal and goal.action=="goto" and not goal.npc
+			end
+			if not self.CurrentStep or not self.CurrentStep.goals then return end
+			if goalnumORx then goals={self.CurrentStep.goals[goalnumORx]} else for i=1,#self.CurrentStep.goals do if self.CurrentStep.goals[i].x then tinsert(goals,self.CurrentStep.goals[i]) end end end
+
+			-- Travel Advisor: detect cross-zone goals
+			local currentZone = GetRealZoneText()
+			local crossZoneDest = nil
+			for _,goal in ipairs(goals) do
+				local gmap = goal.map or (self.CurrentStep and self.CurrentStep.map)
+				if gmap and gmap ~= currentZone and goal.x and goal.y then
+					crossZoneDest = gmap
+					break
+				end
+			end
+			if not goalnumORx then
+				for i=1,#self.CurrentStep.goals do
+					local g = self.CurrentStep.goals[i]
+					if g and displayActions[g.action] and not g.force_noway and not IsNavOnly(g) then
+						local complete,possible = g:IsComplete()
+						if not complete and possible then
+							preferredDisplayGoal = g
+							break
+						end
+					end
+				end
+				if not preferredDisplayGoal then
+					for i=1,#self.CurrentStep.goals do
+						local g = self.CurrentStep.goals[i]
+						if g and displayActions[g.action] and not g.force_noway and not IsNavOnly(g) then
+							local complete = g:IsComplete()
+							if not complete then
+								preferredDisplayGoal = g
+								break
+							end
+						end
+					end
+				end
+				for i=1,#self.CurrentStep.goals do
+					local g = self.CurrentStep.goals[i]
+					if g and displayActions[g.action] and not g.force_noway and not IsNavOnly(g) then
+						lastDisplayGoal = g
+					end
+				end
+			end
+			-- For route/path goals, find first and last indices to only show endpoint markers
+			local routeFirst, routeLast, activeRouteGoal
+			for k,goal in ipairs(goals) do
+				if goal.routegroup then
+					if not routeFirst then routeFirst = k end
+					routeLast = k
+					if not activeRouteGoal then
+						local complete,possible = goal:IsComplete()
+						if not complete and possible then
+							activeRouteGoal = goal
+						end
+					end
+				end
+			end
+			for k,goal in ipairs(goals) do
+				-- Skip middle route waypoints on the map, but keep the currently active
+				-- route point so the arrow can retarget as the generated goto goals advance.
+				if goal.routegroup and routeFirst and k ~= routeFirst and k ~= routeLast and goal ~= activeRouteGoal then
+					-- skip, ant trail covers these
+				elseif not goal.force_noway then
+					local gmap = goal.map or (self.CurrentStep and self.CurrentStep.map) or GetRealZoneText()
+					-- If cross-zone, show travel advice on arrow
+					local travelTitle = nil
+					if crossZoneDest and gmap ~= currentZone then
+						travelTitle = GetTravelArrowTitle(crossZoneDest)
+					end
+					local waypointTitle =
+						goal.title
+						or travelTitle
+						or GetRemasterArrowTitle(self,goal,title)
+						or self.CurrentStep:GetTitle()
+						or (gmap and goal.x and ("%s %d,%d"):format(gmap,goal.x,goal.y))
+						or L['waypoint_step']:format(self.CurrentStepNum)
+					local way = self.Pointer:SetWaypoint (nil,gmap,goal.x,goal.y,{
+						title=waypointTitle,
+						titleloc=FormatWaypointLocation(goal, gmap),
+						goal=goal,
+						onminimap="always",
+						overworld=true
+					})
+					if way then
+						-- Shrink route endpoint markers
+						if goal.routegroup then
+							way.minimapFrame.icon:SetSize(8, 8)
+							way.worldmapFrame.icon:SetSize(12, 12)
+							way.worldmapFrame:SetSize(12, 12)
+						end
+						if not firstpoint then firstpoint=way end
+						lastpoint=way
+						table.insert(points,{goal=goal,way=way})
+					else
+						self:Print("Unable to create waypoint: "..tostring(gmap).." "..tostring(goal.x).." "..tostring(goal.y))
+					end
+				end
+			end
+			local selected
+			-- Strict top-to-bottom progression through sub-goals, but prefer
+			-- non-navigation goals over pure goto markers.
+			for _,p in ipairs(points) do
+				local complete,possible = p.goal:IsComplete()
+				if not complete and possible and not IsNavOnly(p.goal) then selected=p.way break end
+			end
+			if not selected then
+				for _,p in ipairs(points) do
+					local complete = p.goal:IsComplete()
+					if not complete and not IsNavOnly(p.goal) then selected=p.way break end
+				end
+			end
+			for _,p in ipairs(points) do
+				if selected then break end
+				local complete,possible = p.goal:IsComplete()
+				if not complete and possible then selected=p.way break end
+			end
+			if not selected then
+				for _,p in ipairs(points) do
+					local complete = p.goal:IsComplete()
+					if not complete then selected=p.way break end
+				end
+			end
+			if selected then
+				if preferredDisplayGoal and selected.goal and IsNavOnly(selected.goal) then
+					selected.goal = preferredDisplayGoal
+					selected.t =
+						preferredDisplayGoal.title
+						or GetRemasterArrowTitle(self,preferredDisplayGoal,title)
+						or self.CurrentStep:GetTitle()
+						or (preferredDisplayGoal.map and preferredDisplayGoal.x and ("%s %d,%d"):format(preferredDisplayGoal.map,preferredDisplayGoal.x,preferredDisplayGoal.y))
+						or L['waypoint_step']:format(self.CurrentStepNum)
+					selected.titleloc = FormatWaypointLocation(preferredDisplayGoal, preferredDisplayGoal.map or (self.CurrentStep and self.CurrentStep.map) or GetRealZoneText())
+				end
+				-- Travel Advisor: when cross-zone, override arrow to point at transit location
+				if crossZoneDest then
+					local advice = GetTravelAdvice(crossZoneDest)
+					if advice and advice.zone and advice.x and advice.y then
+						-- Create a waypoint at the transit point (boat dock, zeppelin tower, portal)
+						local transitWay = self.Pointer:SetWaypoint(nil, advice.zone, advice.x, advice.y, {
+							title = advice.text,
+							onminimap = "always",
+							overworld = true,
+						})
+						if transitWay then
+							selected = transitWay
+							selected.t = GetTravelArrowTitle(crossZoneDest)
+						end
+					elseif advice then
+						selected.t = GetTravelArrowTitle(crossZoneDest)
+					end
+				end
+				self.Pointer:ShowArrow (selected)
+			elseif lastpoint then
+				-- All goals complete or none selectable: keep location fallback, but show
+				-- the final meaningful objective title for better context.
+				if lastDisplayGoal then
+					lastpoint.goal = lastDisplayGoal
+					lastpoint.t =
+						lastDisplayGoal.title
+						or GetRemasterArrowTitle(self,lastDisplayGoal,title)
+						or self.CurrentStep:GetTitle()
+						or (lastDisplayGoal.map and lastDisplayGoal.x and ("%s %d,%d"):format(lastDisplayGoal.map,lastDisplayGoal.x,lastDisplayGoal.y))
+						or L['waypoint_step']:format(self.CurrentStepNum)
+					lastpoint.titleloc = FormatWaypointLocation(lastDisplayGoal, lastDisplayGoal.map or (self.CurrentStep and self.CurrentStep.map) or GetRealZoneText())
+				end
+				self.Pointer:ShowArrow (lastpoint)
+			elseif firstpoint then
+				self.Pointer:ShowArrow (firstpoint)
+			end
+		else
+			self.Pointer:SetWaypoint (nil,nil,goalnumORx,y,{title=title,persistent=true,overworld=true})
+		end
+	end,
+	addmapnote = function (self,zone,x,y,data)
+		if BZL[zone] then zone=BZL[zone] end
+		local way = self.Pointer:SetWaypoint (nil,zone,x,y,{title=data.title or ("%s %d,%d"):format(zone,x,y),persistent=true,overworld=true})
+	end,
+	disconnect = function(self)
+		self.Pointer:ClearWaypoints()
+	end
+}
+
+me.WaypointFunctions['none'] = {
+	isready = function()
+		return true
+	end,
+	setwaypoint = function (self)
+		self:Debug("No waypointing addon connected.")
+	end
+}
+
+-- call empty funcs under missing indices
+local nilfuncs = {__index=function() end}
+for k,v in pairs(me.WaypointFunctions) do setmetatable (v,nilfuncs) end
+
+
+function me:SetWaypoint(...)
+	-- Safety fallback: if no external waypointer is active/ready, use internal arrow.
+	if (not self.ConnectedWaypointer) or self.db.profile.waypointaddon=="none" then
+		if self.WaypointFunctions and self.WaypointFunctions['internal'] and self.WaypointFunctions['internal'].isready(self) then
+			self.ConnectedWaypointer = self.WaypointFunctions['internal']
+		end
+	end
+	if not self.ConnectedWaypointer then return end
+	if ...~=false and self.db.profile.hidearrowwithguide and not ZGV.Frame:IsShown() then return end
+	if not self:IsWaypointAddonReady() then
+		if self.WaypointFunctions and self.WaypointFunctions['internal'] and self.WaypointFunctions['internal'].isready(self) then
+			self.ConnectedWaypointer = self.WaypointFunctions['internal']
+		else
+			self:Print("Waypoint addon '"..self.db.profile.waypointaddon.."' failed.")
+			return
+		end
+	end
+	self.ConnectedWaypointer.setwaypoint(self,...)
+end
+
+function me:UnsetWaypointAddon()
+	if not self.ConnectedWaypointer then return end
+	local addon = self.db.profile.waypointaddon
+	if not addon or addon=="none" then return end
+
+	if not self:IsWaypointAddonEnabled() then
+		self:Debug("Not enabled, out.")
+		return
+	end --nothing to do here, move along
+
+	if not self:IsWaypointAddonReady() then return end
+
+	self.ConnectedWaypointer.disconnect(self)
+	self.ConnectedWaypointer = nil
+
+	self:Print(L["waypointaddon_disconnected"]:format(L["opt_group_addons_"..addon]))
+end
+
+function me:IsWaypointAddonReady(addon)
+	if not addon then addon = self.db.profile.waypointaddon end
+	return self.WaypointFunctions[addon].isready(self)
+end
+
+function me:IsWaypointAddonEnabled(addon)
+	if not addon then addon = self.db.profile.waypointaddon end
+	return self.db.profile.waypointaddon==addon and self:IsWaypointAddonReady(addon) -- and self.iconsregistered
+end
+
+
+
+function me:qRegisterNotes()
+	if not self.CurrentStep then return end
+	-- use for pre-registering. Cartographer needs that, while TomTom does not.
+	
+	-- retrying 3 times
+	if self.iconsregistered then return end
+	if not self.iconregistryretries then self.iconregistryretries=0 end
+	if self.iconregistryretries==3 then
+		self:Print(L["waypointaddon_fail"]:format(L["opt_group_addons_"..self.db.profile.waypointaddon]))
+		if not self.autodetectingwaypointaddon then
+			self:AutodetectWaypointAddon()
+		end
+
+	end
+	if self.iconregistryretries>3 then return end
+	self.iconregistryretries = self.iconregistryretries + 1
+
+	if not self:IsWaypointAddonReady() then return end
+
+	--self:Print(L["waypointaddon_connecting"]:format(self.optionsmap.args.waypoints.values[self.db.profile.waypointaddon]))
+
+	local addon = self.db.profile.waypointaddon
+
+	if addon=="tomtom" then
+		--[[
+		if not self.db.profile.filternotes then
+			self:Print("Creating all waypoints for TomTom. This may take a while.")
+			local contid,zoneid
+			for zone in pairs(self.MapNotes) do
+				local zoneTr = BZL[zone]
+				contid,zoneid = self:GetMapZoneNumbers(zoneTr)
+				self:Debug("contid="..ns(contid).." zoneid="..ns(zoneid).." for "..ns(zoneTr))
+				if contid and zoneid and (type(self.MapNotes[zone])=="table") then
+					if (TomTom:GetMapFile(contid,zoneid)) then
+						for note,mapnote in pairs(self.MapNotes[zone]) do
+							x,y = self:getXY(note)
+							--self:Debug("x="..ns(x).." y="..ns(y))
+							if x and y then
+								--self:Debug(GetCurrentMapContinent().." "..ns(note).." "..ns(zone).." x"..ns(x).." y"..tostring(y))
+								self.TomTomWaypoints[#self.TomTomWaypoints+1] = TomTom:AddZWaypoint(
+									contid,zoneid,x*100,y*100,
+									self.MapNotes[zone][note].title, --desc
+									false, --persistent
+									true, true, --minimap,world
+									nil,true, --callbacks,silent
+									(zone==self.CurrentStep.mapzone and note==self.CurrentStep.mapnote) --arrow
+								)
+							end
+						end
+					else
+						self:Print("No map data for continent id "..ns(contid)..", zone id "..ns(zoneid)..", zone "..ns(zone)..", please report.")
+					end
+				end
+			end
+		end
+		--]]
+	elseif addon=="cart2" then
+		--[[
+		self:Debug("registering database "..#self.MapNotes)
+		Cartographer_Notes:RegisterNotesDatabase('ZygorGuides', self.MapNotes, self)
+		self:Debug("registered database")
+
+		self:Debug("registering icons")
+		if not self.iconsregistered then
+			for k,v in pairs(self.icons) do
+				Cartographer_Notes:RegisterIcon(k, v)
+			end
+		end
+		--]]
+	elseif addon=="internal" then
+	end
+
+	self:Print(L["waypointaddon_connected"]:format(L["opt_group_addons_"..addon]))
+	self:Debug("registered icons")
+	self.iconsregistered = true
+	self.iconregistryretries = 0
+
+	self:SetWaypoint()
+end
+
+
+
+
+
+-- icon handlers:
+
+function me:GetNoteScaling(zone,id,data)
+	return self.db.profile.iconScale
+end
+
+function me:IsNoteHidden(zone,id,data)
+	return self.db.profile.filternotes and (not self.CurrentStep or not self.CurrentStep.mapnote or (id~=self.CurrentStep.mapnote) or (zone~=self.CurrentStep.mapzone))
+end
+
+function me:IsMiniNoteHidden(zone,id,data)
+	return not self.db.profile.minicons or (self.db.profile.filternotes and ((id~=self.CurrentStep.mapnote) or (zone~=self.CurrentStep.mapzone)))
+end
+
+function me:GetNoteTransparency(zone,id,data)
+	return self.db.profile.iconAlpha
+end
+
+function me:GetNoteIcon(zone,id,data)
+--	return (not self.db.profile.filternotes and self.CurrentStep and (id==self.CurrentStep.mapnote) and (zone==self.CurrentStep.mapzone)) and "hilite" or data.icon
+	return (self.CurrentStep and (id==self.CurrentStep.mapnote) and (zone==self.CurrentStep.mapzone)) and (data.icon=="Square" and "hilitesquare" or "hilite") or data.icon
+end
+
+
+
+-------------------------- Cartographer stuff
+
+function me:ClearCartographerWaypoints()
+	if Cartographer_Waypoints then
+		for i,v in ipairs(Cartographer_Waypoints.Queue) do
+			v:Cancel()
+			Cartographer_Waypoints.Queue[i]=nil
+		end
+	end
+	if Cartographer_Notes and Cartographer_Notes.externalDBs["ZygorGuidesViewer"] then
+		Cartographer_Notes:UnregisterNotesDatabase("ZygorGuidesViewer")
+	end
+end
+
+function me:CreateCartographerWaypoints(goalnum)
+	if not self.CurrentStep or not self.CurrentStep.goals then return end
+
+	local x,y,zone
+
+	local db = {version=3}
+
+	local waypoints = {}
+
+	-- set mapnotes for all the coordinates found in step lines
+	-- REVERSE direction to create proper waypoint queue
+	for i=#self.CurrentStep.goals,1,-1 do
+		local g = self.CurrentStep.goals[i]
+		if g.x and not g.force_noway then
+			zone = g.map
+			if zone then
+				if self.BZR[zone] then zone = self.BZR[zone] end
+				local note = Cartographer_Notes.getID(g.x/100,g.y/100)
+				if not db[zone] then db[zone]={} end
+				db[zone][note]={icon="Circle",title=g.title or self.CurrentStep.title or g.autotitle or self.CurrentStep:GetTitle() or L['waypoint_step']:format(self.CurrentStepNum)}
+
+				if (i==goalnum) or not goalnum then
+					table.insert(waypoints,{zone=zone,note=note})
+				end
+			end
+		end
+	end
+
+	Cartographer_Notes:RegisterNotesDatabase("ZygorGuidesViewer",db)
+
+	for i,way in ipairs(waypoints) do
+		Cartographer_Waypoints:SetNoteAsWaypoint(way.zone,way.note)
+	end
+
+	Cartographer_Notes:MINIMAP_UPDATE_ZOOM()
+end
+
+function me:CreateCartographerWaypointXY(x,y,title)
+	local zone = select(GetCurrentMapZone(), GetMapZones(GetCurrentMapContinent())) -- likely fails in Scarlet Enclave
+	Cartographer_Waypoints:AddWaypoint(NotePoint:new(zone, x, y, title or "Waypoint"))
+end
+
+
+function me:UpdateCartographerExport()
+	if ((self.db.profile.waypointaddon~="cart2") and (self.db.profile.waypointaddon~="cart3")) then return end  -- or (not self.iconsregistered) 
+
+	Cartographer_Notes:MINIMAP_UPDATE_ZOOM()
+	Cartographer_Notes:UpdateMinimapIcons()
+	Cartographer_Notes:RefreshMap()
+end
+
+
+
+-------------------------- TomTom stuff
+
+
+function me:ClearTomTomWaypoints()
+	--self:Debug("Clearing TomTom waypoints:")
+	for i,p in ipairs(self.TomTomWaypoints) do
+		--self:Debug(p)
+		TomTom:RemoveWaypoint(p)
+	end
+	self.TomTomWaypoints = {}
+end
+
+function me:CreateTomTomWaypoints(goalnum)
+	--if not Astrolabe.ContinentList[101] then Astrolabe.ContinentList[101] = {[1]="ScarletEnclave"} end
+	if not self.CurrentStep or not self.CurrentStep.goals then return end
+	
+	if (TomTom.profile and TomTom.profile.persistence) then
+		TomTom.profile.persistence.cleardistance = 0
+	end
+
+--	if self.CurrentStep.mapnote then
+
+	local x,y,zone
+
+	for i=#self.CurrentStep.goals,1,-1 do
+		local goal = self.CurrentStep.goals[i]
+		if goal.x and not goal.force_noway then
+			local contid,zoneid
+			contid,zoneid = self:GetMapZoneNumbers(goal.map)  -- localized already on load
+			--self:Print("contid:"..(contid or 'nil').." zoneid:"..(zoneid or 'nil'))
+			local way = TomTom:AddZWaypoint(
+				contid, zoneid,
+				goal.x, goal.y,
+				goal.title or self.CurrentStep.title or goal.autotitle or self.CurrentStep:GetTitle() or "Step "..self.CurrentStepNum,
+				false, --persistent
+				true, --minimap
+				true, --world
+				nil, --custom_callbacks
+				true, --silent
+				(i==goalnum or not goalnum) --arrow
+			)
+			--self:Debug("added to TomTom as:"..(way or 'nil'))
+			if way then table.insert(self.TomTomWaypoints, way) end
+		end
+
+	end
+
+end
+
+function me:CreateTomTomWaypointXY(x,y,title,arrow)
+	return self:CreateTomTomWaypointZXY(GetRealZoneText(),x,y,title,arrow)
+end
+
+function me:CreateTomTomWaypointZXY(zone,x,y,title,arrow)
+	local contid,zoneid = self:GetMapZoneNumbers(zone)
+	return self:CreateTomTomWaypointCZXY(contid,zoneid,x,y,title,arrow)
+end
+
+function me:CreateTomTomWaypointCZXY(contid,zoneid,x,y,title,arrow)
+	self:Debug(x..' '..y)
+	local way = TomTom:AddZWaypoint(
+		contid, zoneid,
+		x, y,
+		title or self.CurrentStep.title or "Step "..self.CurrentStepNum,
+		false, --persistent
+		true, --minimap
+		true, --world
+		nil, --custom_callbacks
+		true, --silent
+		arrow --arrow
+	)
+	if way then table.insert(self.TomTomWaypoints, way) end
+end
+
+local MapZoneCache={}
+local cached
+function me:GetMapZoneNumbers(zonename)
+	if zonename==self.BZL["Plaguelands: The Scarlet Enclave"] then return 5,1 end
+	cached = MapZoneCache[zonename]
+	if cached then return unpack(cached) end
+	for cont in pairs{GetMapContinents()} do
+		for zone,name in pairs{GetMapZones(cont)} do
+			if name==zonename then
+				MapZoneCache[zonename]={cont,zone}
+				return cont,zone
+			end
+		end
+	end
+	return 0
+end
+
+-- only for TomTom support, Astrolabe bundled
+function me:GetMapZoneFile(zonename)
+	Astrolabe = DongleStub("Astrolabe-0.4")
+	for cont in pairs{GetMapContinents()} do
+		for zone,name in pairs{GetMapZones(cont)} do
+			if name==zonename then
+				return Astrolabe.ContinentList[cont][zone]
+			end
+		end
+	end
+	return ""
+end
+
+--EVIL STUFF. Hacking the ORIGINAL GetMapContinents(). This is bad, bad, bad - but Blizzard broke the rules by creating an off-world zone first... ;P
+--[[
+local continentlist = { GetMapContinents() }
+table.insert(continentlist,ZygorGuidesViewer.BZL["Plaguelands: The Scarlet Enclave"])
+function GetMapContinents()
+	return unpack(continentlist)
+end
+local _GetMapZones = GetMapZones
+function GetMapZones(cont)
+	if cont<5 then
+		return _GetMapZones(cont)
+	else
+		return ZygorGuidesViewer.BZL["Plaguelands: The Scarlet Enclave"]
+	end
+end
+--]]

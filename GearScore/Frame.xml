@@ -427,7 +427,7 @@
 		<Scripts>
 			<OnUpdate>
 				GS_ExPFrameUpdateCounter = ( GS_ExPFrameUpdateCounter or 0 ) + elapsed
-				if GS_ExPFrameUpdateCounter &gt; 2 then
+				if GS_ExPFrameUpdateCounter > 2 then
 						if UnitName("target") and GS_DisplayPlayer == ( UnitName("target") or " " ) then
 								NotifyInspect("target"); 
 --ClearAchievementComparisonUnit(); --SetAchievementComparisonUnit("target")		

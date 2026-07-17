@@ -1,0 +1,17 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+	<!-- Autoloading of included builds. Add more files here as you please. -->
+	
+	<Script file="ZygorGuidesBuilds.lua"/>
+	<Script file="build01.lua"/>
+	<Script file="build02.lua"/>
+	<Script file="build03.lua"/>
+	<Script file="build04.lua"/>
+	<Script file="build05.lua"/>
+	<Script file="build06.lua"/>
+	<Script file="build07.lua"/>
+	<Script file="build08.lua"/>
+	<Script file="build09.lua"/>
+	<Script file="build10.lua"/>
+
+</Ui>

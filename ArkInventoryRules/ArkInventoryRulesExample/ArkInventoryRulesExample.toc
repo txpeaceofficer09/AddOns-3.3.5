@@ -1,0 +1,21 @@
+﻿## Interface: 30300
+## X-Curse-Packaged-Version: 3.02.54 BETA 17-00-Cataclysm
+## X-Curse-Project-Name: ArkInventory
+## X-Curse-Project-ID: ark-inventory
+## X-Curse-Repository-ID: wow/ark-inventory/mainline
+
+## Title: ArkInventory [Rules] Example
+## Notes: Example rule for ArkInventory
+## Author: Arkayenro
+## Version: 1.00
+## DefaultState: Enabled
+## LoadOnDemand: 0
+
+## RequiredDeps: ArkInventoryRules
+## OptionalDeps: 
+
+## LoadManagers: AddonLoader
+## X-LoadOn-Always:delayed
+
+
+ArkInventoryRulesExample.lua

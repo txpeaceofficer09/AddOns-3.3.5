@@ -1,0 +1,6 @@
+## Interface: 30300
+## Title: HideParty
+## Notes: Hide the default party frames.
+## Author: Soonbesteak
+## Version: 1.0.0
+Core.lua

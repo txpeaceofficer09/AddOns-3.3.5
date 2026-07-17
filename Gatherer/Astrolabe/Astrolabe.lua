@@ -372,17 +372,20 @@ local minimapRotationOffset = GetPlayerFacing();
 
 local function placeIconOnMinimap( minimap, minimapZoom, mapWidth, mapHeight, icon, dist, xDist, yDist )
 	local mapDiameter;
+	mapDiameter = Minimap:GetWidth();
+	--[[
 	if ( Astrolabe.minimapOutside ) then
 		mapDiameter = MinimapSize.outdoor[minimapZoom];
 	else
 		mapDiameter = MinimapSize.indoor[minimapZoom];
 	end
+	]]
 	local mapRadius = mapDiameter / 2;
 	local xScale = mapDiameter / mapWidth;
 	local yScale = mapDiameter / mapHeight;
 	local iconDiameter = ((icon:GetWidth() / 2) + 3) * xScale;
 	local iconOnEdge = nil;
-	local isRound = true;
+	local isRound = false;
 	
 	if ( minimapRotationEnabled ) then
 		local sinTheta = sin(minimapRotationOffset)
